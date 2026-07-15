@@ -28,6 +28,22 @@ test every layer that can be driven deterministically without the live instance
   extension-host behaviors in the meantime.
 - Self-hosted Open VSX registry: infra decision pending your sign-off (ADMIN.md).
 
-## Progress
-- [in progress] scaffold + shared + gitlab-client + proxy + extension + e2e + review
-(updated as the session runs)
+## What got built (all committed)
+- `shared` — message/tool types, the five tool schemas, the German system prompt, the pure agent loop, the `ToolBackend` interface + tool executor with the human-approval gate and path-traversal guard. 27 tests.
+- `gitlab-client` — fetch-based GitLab REST client (browser + node) and `GitLabRestBackend`. 16 tests.
+- `proxy` — stateless LLM gateway: mock / anthropic / bedrock providers, CORS + preflight, bearer auth (constant-time). 15 tests.
+- `extension` — VS Code web-extension: webview chat, `VSCodeBackend`, Web-IDE auth (`getSession('gitlab-web-ide')`) with PAT fallback, proxy client, cross-message conversation memory. 13 tests. Builds to a 33 KB browser bundle via esbuild.
+- `e2e` — flagship "session note → split sheet → merge request": one deterministic run (mock GitLab + in-process proxy) and one against a REAL Claude model.
+- `infra/local-gitlab` — GitLab CE 18.0.2 compose + token bootstrap (loopback-bound).
+- `.gitlab-ci.yml` — build + typecheck + test on every push.
+
+## Proven this session
+- 71 unit tests + typecheck clean across all four packages.
+- Flagship pipeline works end-to-end with the **mock** brain (deterministic) AND with a **real Claude Sonnet 5** (~27 s): the model read the note, drafted the split sheet, committed it, and opened a merge request through the entire real pipeline (loop → HTTP proxy → Anthropic API → tool-use → executor → GitLab backend/client). Only the model and the GitLab server were simulated in the deterministic run; the real run simulated only the GitLab server.
+- Security review (independent) + code review (independent) run; both must-fix correctness bugs and the HIGH security finding fixed and covered by new tests.
+
+## Honest gaps (need you / the real instance)
+- **Local GitLab did not come up.** The `gitlab/gitlab-ce:18.0.2-ce.0` image is amd64-only; under arm64 emulation on this Mac it never served HTTP in ~20 min. The guarded `e2e/flagship-live.test.ts` runs the *same* flow against a real GitLab and is ready — point it at a native-arm64 GitLab (or the real instance once it's back) and it seeds a throwaway project and asserts a real MR. To retry locally: use a GitLab image with an arm64 manifest, or run the live test against gitlab.xconcapps.de directly.
+- **Real Web IDE click-through** on gitlab.xconcapps.de: still needs the instance up + the extension distributed (Spike C). `@vscode/test-web` (scaffolded in `packages/extension/test-web/`) is the automated stand-in for the extension-host behaviors and is the recommended next check.
+- **Bedrock EU** (production LLM path): wired behind env placeholders, not exercised (no AWS creds). The real Anthropic token proved the loop; swapping to the Bedrock EU provider is one env change + adding `@anthropic-ai/bedrock-sdk`.
+- Deferred review nits (documented, not blocking): mock provider treats any tool_result as success (#4, test-only); `requireString` rejects intentionally-empty content (#7); `thinking:disabled` hardcoded (fine for Sonnet 5 / Opus, would 400 on Fable 5) (#8); `list_files` sees staged edits in the Web IDE backend but not the REST backend (#9).
