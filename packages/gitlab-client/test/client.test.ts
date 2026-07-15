@@ -51,6 +51,12 @@ describe("GitlabClient", () => {
     }
   });
 
+  it("surfaces a short GitLab error detail so the model can self-correct", async () => {
+    const { fetchImpl } = makeFetch(() => ({ status: 400, body: "Branch already exists" }));
+    const client = new GitlabClient({ ...base, fetchImpl });
+    await expect(client.createBranch("split/x", "main")).rejects.toThrow(/Branch already exists/);
+  });
+
   it("reads a file via the raw endpoint and returns text", async () => {
     const { fetchImpl, calls } = makeFetch(() => ({ status: 200, body: "line1\nline2" }));
     const client = new GitlabClient({ ...base, fetchImpl });

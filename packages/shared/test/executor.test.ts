@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  assertSafeRepoPath,
   createToolExecutor,
   type ToolBackend,
   type ToolUseBlock,
@@ -115,5 +116,33 @@ describe("createToolExecutor", () => {
     const r = await exec(use("delete_everything", {}));
     expect(r.isError).toBe(true);
     expect(r.content).toContain("Unbekanntes Werkzeug");
+  });
+
+  it("blocks path traversal on read_file / list_files / propose_edit before the backend runs", async () => {
+    const backend = fakeBackend();
+    const exec = createToolExecutor(backend);
+    await expect(exec(use("read_file", { path: "../../secret.env" }))).rejects.toThrow(/\.\./);
+    await expect(exec(use("list_files", { path: "../etc" }))).rejects.toThrow(/\.\./);
+    await expect(
+      exec(use("propose_edit", { path: "/etc/passwd", content: "x", summary: "s" })),
+    ).rejects.toThrow(/[Aa]bsolut/);
+    expect(backend.readFile).not.toHaveBeenCalled();
+    expect(backend.listFiles).not.toHaveBeenCalled();
+    expect(backend.proposeEdit).not.toHaveBeenCalled();
+  });
+});
+
+describe("assertSafeRepoPath", () => {
+  it("accepts normal repo-relative paths", () => {
+    expect(() => assertSafeRepoPath("")).not.toThrow();
+    expect(() => assertSafeRepoPath("vertraege/split-sheet.md")).not.toThrow();
+    expect(() => assertSafeRepoPath("mock-substrate-musik/katalog/x.csv")).not.toThrow();
+  });
+  it("rejects .. segments, absolute paths, backslash escapes and null bytes", () => {
+    expect(() => assertSafeRepoPath("../x")).toThrow();
+    expect(() => assertSafeRepoPath("a/../../b")).toThrow();
+    expect(() => assertSafeRepoPath("/etc/passwd")).toThrow();
+    expect(() => assertSafeRepoPath("a\\..\\b")).toThrow();
+    expect(() => assertSafeRepoPath("a\0b")).toThrow();
   });
 });

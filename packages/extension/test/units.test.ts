@@ -190,4 +190,14 @@ describe("VSCodeBackend", () => {
     const r = await backend.proposeEdit("README.md", "new", "s");
     expect(r.isNew).toBe(false);
   });
+
+  it("keeps isNew=true when the same new file is proposed twice (no create->update flip)", async () => {
+    const fs = memoryFs();
+    const backend = new VSCodeBackend(fs, fakeApi(), "main");
+    const first = await backend.proposeEdit("vertraege/draft.md", "v1", "s");
+    const second = await backend.proposeEdit("vertraege/draft.md", "v2", "s");
+    expect(first.isNew).toBe(true);
+    expect(second.isNew).toBe(true);
+    expect(fs.files.get("vertraege/draft.md")).toBe("v2");
+  });
 });

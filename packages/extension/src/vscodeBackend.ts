@@ -58,7 +58,11 @@ export class VSCodeBackend implements ToolBackend {
     content: string,
     _summary: string,
   ): Promise<ProposeEditResult> {
-    const isNew = !(await this.fs.exists(path));
+    // Decide "new vs update" from the FIRST observation and keep it. Re-proposing
+    // the same not-yet-committed file must not flip create->update just because
+    // the previous propose_edit already wrote it into the working copy.
+    const existing = this.staged.get(path);
+    const isNew = existing ? existing.isNew : !(await this.fs.exists(path));
     // Write into the IDE working copy so the human sees the change as a diff.
     await this.fs.writeFile(path, content);
     this.staged.set(path, { content, isNew });

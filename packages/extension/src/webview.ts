@@ -62,6 +62,7 @@ export function getWebviewHtml(cspSource: string, nonce: string): string {
   }
 
   function submit() {
+    if (send.disabled) return; // agent is busy; don't drop the message silently
     const text = input.value.trim();
     if (!text) return;
     add('user', text);

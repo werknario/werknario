@@ -1,12 +1,23 @@
 import * as vscode from "vscode";
 import {
+  assertSafeRepoPath,
   buildSystemPrompt,
   createToolExecutor,
   runAgentLoop,
   TOOL_DEFINITIONS,
+  type LlmCaller,
   type Message,
+  type ToolExecutor,
   type ToolUseBlock,
 } from "@werknario/shared";
+
+/** Built once per chat panel and reused across messages, so the conversation and
+ * the staged edits survive a "propose -> human replies to confirm" round-trip. */
+interface AgentSession {
+  executeTool: ToolExecutor;
+  callLlm: LlmCaller;
+  system: string;
+}
 import { GitlabClient } from "@werknario/gitlab-client";
 import { resolveGitlabToken } from "./auth.js";
 import { readConfig, type AgentConfig } from "./config.js";
@@ -33,6 +44,8 @@ class ChatPanel {
   private readonly pendingApprovals = new Map<string, (ok: boolean) => void>();
   private approvalCounter = 0;
   private busy = false;
+  private conversation: Message[] = [];
+  private session: AgentSession | undefined;
 
   static createOrShow(context: vscode.ExtensionContext): void {
     if (ChatPanel.current) {
@@ -91,43 +104,49 @@ class ChatPanel {
     });
   }
 
+  /** Build the GitLab client, backend, executor and caller once, then reuse them
+   * (and their staged-edit state) for every message in this panel. */
+  private async ensureSession(): Promise<AgentSession> {
+    if (this.session) return this.session;
+    const config = this.loadConfig();
+    const token = await this.resolveToken(config);
+    const client = new GitlabClient({
+      baseUrl: config.gitlabBaseUrl,
+      token,
+      projectId: config.projectId,
+    });
+    const project = await client.getProject();
+    const backend = new VSCodeBackend(
+      createWorkspaceFs(),
+      client,
+      project.default_branch,
+    );
+    this.session = {
+      executeTool: createToolExecutor(backend, {
+        onApprovalRequest: (tu) => this.requestApproval(tu),
+      }),
+      callLlm: createProxyCaller({ url: config.proxyUrl, token: config.proxyToken }),
+      system: buildSystemPrompt({
+        projectPath: project.path_with_namespace,
+        defaultBranch: project.default_branch,
+      }),
+    };
+    return this.session;
+  }
+
   private async run(userText: string): Promise<void> {
     this.busy = true;
     this.post({ type: "status", text: "Verbinde…" });
     try {
-      const config = this.loadConfig();
-      const token = await this.resolveToken(config);
-
-      const client = new GitlabClient({
-        baseUrl: config.gitlabBaseUrl,
-        token,
-        projectId: config.projectId,
-      });
-      const project = await client.getProject();
-      const ref = project.default_branch;
-
-      const fs = createWorkspaceFs();
-      const backend = new VSCodeBackend(fs, client, ref);
-      const executeTool = createToolExecutor(backend, {
-        onApprovalRequest: (tu) => this.requestApproval(tu),
-      });
-      const callLlm = createProxyCaller({
-        url: config.proxyUrl,
-        token: config.proxyToken,
-      });
-
-      const system = buildSystemPrompt({
-        projectPath: project.path_with_namespace,
-        defaultBranch: ref,
-      });
-      const messages: Message[] = [{ role: "user", content: userText }];
+      const session = await this.ensureSession();
+      this.conversation.push({ role: "user", content: userText });
 
       this.post({ type: "status", text: "Die KI denkt nach…" });
-      const result = await runAgentLoop(messages, {
-        system,
+      const result = await runAgentLoop(this.conversation, {
+        system: session.system,
         tools: TOOL_DEFINITIONS,
-        callLlm,
-        executeTool,
+        callLlm: session.callLlm,
+        executeTool: session.executeTool,
         events: {
           onAssistantText: (text) => this.post({ type: "assistantText", text }),
           onToolUse: (b) => this.post({ type: "toolUse", label: toolUseLabel(b) }),
@@ -136,6 +155,8 @@ class ChatPanel {
           onTurn: (n) => this.post({ type: "status", text: `Runde ${n}…` }),
         },
       });
+      // Persist the full transcript so the next message continues this conversation.
+      this.conversation = result.messages;
       if (result.stopped === "max_turns") {
         this.post({
           type: "error",
@@ -186,6 +207,9 @@ function createWorkspaceFs(): WorkspaceFs {
   const enc = new TextEncoder();
   const dec = new TextDecoder();
   const toUri = (p: string): vscode.Uri => {
+    // Defense in depth: the executor already rejects escaping paths, but guard
+    // here too so no future caller can walk out of the project root.
+    assertSafeRepoPath(p);
     const parts = p.split("/").filter((s) => s.length > 0);
     return parts.length ? vscode.Uri.joinPath(root, ...parts) : root;
   };

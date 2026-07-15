@@ -88,6 +88,19 @@ export class GitlabError extends Error {
   }
 }
 
+/**
+ * A short, bounded slice of GitLab's error body to append to the error message,
+ * so the model reading the tool_result can self-correct (e.g. "Branch already
+ * exists" -> pick another name). GitLab operation errors are not secrets; still
+ * capped to keep the model's context tight. The full body stays on `.detail`.
+ */
+function shortDetail(detail: string): string {
+  const trimmed = detail.trim();
+  if (!trimmed) return "";
+  const oneLine = trimmed.replace(/\s+/g, " ");
+  return `: ${oneLine.slice(0, 200)}`;
+}
+
 export interface GitlabApi {
   getProject(): Promise<GitlabProject>;
   listTree(path: string, ref?: string): Promise<GitlabTreeEntry[]>;
@@ -165,7 +178,7 @@ export class GitlabClient implements GitlabApi {
         /* ignore */
       }
       throw new GitlabError(
-        `GitLab ${method} ${apiPath} → ${res.status}`,
+        `GitLab ${method} ${apiPath} → ${res.status}${shortDetail(detail)}`,
         res.status,
         detail,
       );
@@ -203,7 +216,7 @@ export class GitlabClient implements GitlabApi {
         /* ignore */
       }
       throw new GitlabError(
-        `GitLab GET file ${path} → ${res.status}`,
+        `GitLab GET file ${path} → ${res.status}${shortDetail(detail)}`,
         res.status,
         detail,
       );

@@ -1,0 +1,26 @@
+# CI for the werknario Web-IDE agent. Commit to a branch -> build + typecheck +
+# all tests run automatically (CLAUDE.md §7). The real-model and live-GitLab
+# e2e tests skip unless their env is set, so the pipeline stays deterministic.
+default:
+  image: node:24-alpine
+
+stages:
+  - verify
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .npm/
+
+verify:
+  stage: verify
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm run build          # shared(emit) -> gitlab-client(check) -> proxy(emit) -> extension(esbuild bundle)
+    - npm run typecheck       # strict typecheck across all workspaces
+    - npm run test            # unit tests: shared, gitlab-client, proxy, extension
+    - cd e2e && npx vitest run  # flagship pipeline (real-LLM + live-GitLab tests skip without env)
+  artifacts:
+    paths:
+      - packages/extension/dist/web/extension.js
+    expire_in: 1 week

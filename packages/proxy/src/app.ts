@@ -1,6 +1,15 @@
+import { timingSafeEqual } from "node:crypto";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { LlmRequest } from "@werknario/shared";
 import type { Provider } from "./providers/index.js";
+
+/** Length-checked constant-time string compare, to avoid a timing side-channel on the bearer token. */
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
 
 export interface AppConfig {
   provider: Provider;
@@ -45,7 +54,7 @@ function requireBearer(bearerToken: string | undefined) {
     const header = req.headers.authorization;
     const provided = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
 
-    if (!bearerToken || !provided || provided !== bearerToken) {
+    if (!bearerToken || !provided || !safeEqual(provided, bearerToken)) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }

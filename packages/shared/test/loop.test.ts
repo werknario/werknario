@@ -140,6 +140,23 @@ describe("runAgentLoop", () => {
     expect(executeTool).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps a valid transcript when stopping at maxTurns (every tool_use is paired)", async () => {
+    const callLlm = vi.fn(async () => toolCall("list_files", {}, "loop"));
+    const executeTool = vi.fn(async () => ({ content: "[]" }));
+    const res = await runAgentLoop([{ role: "user", content: "go" }], {
+      ...baseOpts,
+      callLlm,
+      executeTool,
+      maxTurns: 2,
+    });
+    expect(res.stopped).toBe("max_turns");
+    const last = res.messages[res.messages.length - 1];
+    expect(last?.role).toBe("user");
+    const blocks = last?.content as Array<{ type: string; tool_use_id: string }>;
+    expect(blocks.every((b) => b.type === "tool_result")).toBe(true);
+    expect(blocks[0]?.tool_use_id).toBe("loop");
+  });
+
   it("treats stop_reason=tool_use with no tool_use blocks as end_turn (no infinite loop)", async () => {
     const malformed: LlmResponse = {
       role: "assistant",

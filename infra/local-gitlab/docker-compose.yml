@@ -18,9 +18,11 @@ services:
         puma['worker_processes'] = 2
         sidekiq['max_concurrency'] = 5
         gitlab_rails['env'] = { 'MALLOC_ARENA_MAX' => '2' }
+    # Bind to loopback only — the fixed dev password/token must not be reachable
+    # from other machines on a shared network.
     ports:
-      - "9180:9180"
-      - "2224:22"
+      - "127.0.0.1:9180:9180"
+      - "127.0.0.1:2224:22"
     shm_size: "256m"
     healthcheck:
       test: ["CMD", "/opt/gitlab/bin/gitlab-healthcheck", "--fail", "--max-time", "10"]

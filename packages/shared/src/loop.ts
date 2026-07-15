@@ -117,6 +117,16 @@ export async function runAgentLoop(
     }
 
     if (turns >= maxTurns) {
+      // Keep the transcript valid: every tool_use needs a paired tool_result,
+      // even when we stop before executing. Otherwise a resumed conversation
+      // would send a dangling tool_use to the model and get a 400.
+      const aborted: ToolResultBlock[] = toolUses.map((tu) => ({
+        type: "tool_result",
+        tool_use_id: tu.id,
+        content: "Abgebrochen: Rundenlimit erreicht, bevor dieses Werkzeug ausgeführt wurde.",
+        is_error: true,
+      }));
+      messages.push({ role: "user", content: aborted });
       return { messages, finalText: lastText, turns, stopped: "max_turns" };
     }
 

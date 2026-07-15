@@ -108,6 +108,17 @@ describe("GitLabRestBackend", () => {
     ).rejects.toThrow(/Keine vorgeschlagenen/);
   });
 
+  it("keeps isNew stable across repeated proposals and only queries once", async () => {
+    const fileExists = vi.fn(async () => false);
+    const api = fakeApi({ fileExists });
+    const backend = new GitLabRestBackend(api, "main");
+    const first = await backend.proposeEdit("new.md", "v1", "s");
+    const second = await backend.proposeEdit("new.md", "v2", "s");
+    expect(first.isNew).toBe(true);
+    expect(second.isNew).toBe(true);
+    expect(fileExists.mock.calls.length).toBe(1);
+  });
+
   it("addComment delegates to addNote", async () => {
     const api = fakeApi();
     const backend = new GitLabRestBackend(api);

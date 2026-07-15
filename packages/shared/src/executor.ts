@@ -72,6 +72,24 @@ export interface ToolExecutorOptions {
 
 const DEFAULT_MAX_READ_CHARS = 60_000;
 
+/**
+ * Reject any path that could escape the repo root. File content flows into the
+ * model, so a prompt-injected substrate file must not be able to talk the agent
+ * into reading `../../other-project/.env`. Enforced centrally here, before any
+ * backend runs, so it covers every tool and both backends.
+ */
+export function assertSafeRepoPath(path: string): void {
+  if (path.includes("\0")) throw new Error("Ungültiger Pfad (Null-Byte).");
+  if (path.startsWith("/")) {
+    throw new Error(`Absolute Pfade sind nicht erlaubt: ${path}`);
+  }
+  for (const seg of path.split(/[\\/]/)) {
+    if (seg === "." || seg === "..") {
+      throw new Error(`Pfad darf keine "." oder ".." Segmente enthalten: ${path}`);
+    }
+  }
+}
+
 function asString(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
@@ -115,6 +133,7 @@ export function createToolExecutor(
     switch (toolUse.name) {
       case "list_files": {
         const path = asString(input["path"]);
+        assertSafeRepoPath(path);
         const entries = await backend.listFiles(path);
         const listing = entries.length ? entries.join("\n") : "(leer)";
         return { content: truncate(listing, maxRead) };
@@ -122,12 +141,14 @@ export function createToolExecutor(
 
       case "read_file": {
         const path = requireString(input, "path");
+        assertSafeRepoPath(path);
         const text = await backend.readFile(path);
         return { content: truncate(text, maxRead) };
       }
 
       case "propose_edit": {
         const path = requireString(input, "path");
+        assertSafeRepoPath(path);
         const content = requireString(input, "content");
         const summary = asString(input["summary"]) || "(ohne Beschreibung)";
         const res = await backend.proposeEdit(path, content, summary);

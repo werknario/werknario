@@ -55,9 +55,12 @@ export class GitLabRestBackend implements ToolBackend {
     content: string,
     _summary: string,
   ): Promise<ProposeEditResult> {
-    const exists = await this.api.fileExists(path, this.ref);
-    this.staged.set(path, { content, isNew: !exists });
-    return { path, isNew: !exists };
+    // Cache the new-vs-update decision from the first propose_edit so repeated
+    // proposals of the same path stay consistent (and skip a redundant lookup).
+    const existing = this.staged.get(path);
+    const isNew = existing ? existing.isNew : !(await this.api.fileExists(path, this.ref));
+    this.staged.set(path, { content, isNew });
+    return { path, isNew };
   }
 
   async createMergeRequest(
