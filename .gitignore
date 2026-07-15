@@ -1,0 +1,19 @@
+node_modules/
+dist/
+out/
+*.vsix
+coverage/
+.vscode-test-web/
+.DS_Store
+
+# secrets — never commit
+.env
+.env.local
+
+# local test infra artifacts
+infra/local-gitlab/.boot-status
+infra/local-gitlab/boot.log
+infra/local-gitlab/.local-admin-token
+
+# logs
+*.log

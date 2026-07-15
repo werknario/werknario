@@ -1,0 +1,38 @@
+# Local GitLab CE for integration testing the werknario Web-IDE agent.
+# Pinned to 18.0.2 to match the real x-concapps instance. Test infra only.
+# Ports live in the 9100-9199 range to avoid clashing with other local work.
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:18.0.2-ce.0
+    container_name: werknario-gitlab
+    hostname: localhost
+    restart: unless-stopped
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost:9180'
+        gitlab_rails['initial_root_password'] = 'werknario-local-dev-9180'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2224
+        gitlab_rails['gitlab_default_can_create_group'] = true
+        # keep the box light: no prometheus, fewer puma workers
+        prometheus_monitoring['enable'] = false
+        puma['worker_processes'] = 2
+        sidekiq['max_concurrency'] = 5
+        gitlab_rails['env'] = { 'MALLOC_ARENA_MAX' => '2' }
+    ports:
+      - "9180:9180"
+      - "2224:22"
+    shm_size: "256m"
+    healthcheck:
+      test: ["CMD", "/opt/gitlab/bin/gitlab-healthcheck", "--fail", "--max-time", "10"]
+      interval: 30s
+      timeout: 15s
+      retries: 40
+      start_period: 300s
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-logs:/var/log/gitlab
+      - gitlab-data:/var/opt/gitlab
+volumes:
+  gitlab-config:
+  gitlab-logs:
+  gitlab-data:
