@@ -1,0 +1,77 @@
+{
+  "name": "werknario-webide-agent",
+  "displayName": "Fleetlicht KI (werknario)",
+  "description": "Web-native KI-Agent für die GitLab Web IDE: liest das Substrat, schlägt Änderungen als Diff vor, öffnet einen Merge Request.",
+  "version": "0.1.0",
+  "publisher": "xconcapps",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "browser": "./dist/web/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "werknario.openChat",
+        "title": "Fleetlicht KI: Chat öffnen",
+        "category": "Fleetlicht KI"
+      }
+    ],
+    "configuration": {
+      "title": "Fleetlicht KI",
+      "properties": {
+        "werknario.proxyUrl": {
+          "type": "string",
+          "default": "",
+          "description": "URL des EU-LLM-Proxys (z. B. https://proxy.example.eu)."
+        },
+        "werknario.proxyToken": {
+          "type": "string",
+          "default": "",
+          "description": "Bearer-Token für den LLM-Proxy. Kein GitLab- oder AWS-Schlüssel."
+        },
+        "werknario.gitlabBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Basis-URL der GitLab-Instanz (z. B. https://gitlab.xconcapps.de)."
+        },
+        "werknario.projectId": {
+          "type": "string",
+          "default": "",
+          "description": "GitLab-Projekt-ID oder -Pfad (z. B. 124 oder x-concapps/fleetlicht-demo)."
+        },
+        "werknario.gitlabPat": {
+          "type": "string",
+          "default": "",
+          "description": "Optionaler GitLab-Zugriffstoken als Fallback, falls die Web IDE keine Sitzung liefert."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:web": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. --extensionTestsPath=./dist/test/suite/index.js ./test-fixtures/workspace"
+  },
+  "dependencies": {
+    "@werknario/gitlab-client": "*",
+    "@werknario/shared": "*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-web": "^0.0.60",
+    "esbuild": "^0.23.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
+  }
+}

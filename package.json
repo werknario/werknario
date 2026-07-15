@@ -7,10 +7,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build -w @werknario/shared && npm run build -w @werknario/gitlab-client && npm run build -w @werknario/proxy && npm run build -w werknario-webide-agent",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "test:unit": "npm run test --workspace packages/shared --workspace packages/gitlab-client --workspace packages/proxy",
     "clean": "rm -rf packages/*/dist packages/*/out node_modules/.cache"
   },
   "devDependencies": {

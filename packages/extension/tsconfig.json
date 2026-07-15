@@ -2,9 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "lib": ["ES2022", "DOM"],
+    "types": ["vscode"],
     "paths": {
-      "@werknario/shared": ["../shared/src/index.ts"]
+      "@werknario/shared": ["../shared/src/index.ts"],
+      "@werknario/gitlab-client": ["../gitlab-client/src/index.ts"]
     }
   },
   "include": ["src/**/*"],
