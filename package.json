@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "description": "Web-native KI agent for the GitLab Web IDE: reads the document substrate, proposes edits as a diff, opens a merge request. No terminal. CI is its hand.",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "registry"
   ],
   "scripts": {
     "build": "npm run build -w @werknario/shared && npm run build -w @werknario/gitlab-client && npm run build -w @werknario/proxy && npm run build -w werknario-webide-agent",

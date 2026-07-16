@@ -1,0 +1,11 @@
+{
+  "name": "werknario-webide-agent",
+  "displayName": "Fleetlicht KI (werknario)",
+  "description": "Web-native KI-Agent für die GitLab Web IDE: liest das Dokumentsubstrat, schlägt Änderungen als Diff vor, öffnet einen Merge Request.",
+  "version": "0.1.0",
+  "publisher": "xconcapps",
+  "engines": {
+    "vscode": "^1.92.0"
+  },
+  "browser": "./dist/web/extension.js"
+}

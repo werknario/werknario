@@ -1,0 +1,14 @@
+.git
+node_modules
+**/node_modules
+**/dist
+**/*.vsix
+**/*.log
+registry/ext-store
+infra
+docs
+e2e
+.vscode-test-web
+coverage
+.env
+.env.*

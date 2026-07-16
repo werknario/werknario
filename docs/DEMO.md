@@ -45,11 +45,10 @@ The deterministic tests simulate GitLab. To hit a real instance:
 
 ## Run the extension in the actual Web IDE
 
-1. Distribute it: per the werknario spikes (Spike C), set the instance
-   `vscode_extension_marketplace` to `preset=custom` pointing at a self-hosted Open
-   VSX registry, and publish this extension there. (`npm run build -w werknario-webide-agent`
-   produces `packages/extension/dist/web/extension.js`; `vsce package --target web`
-   makes the `.vsix`.)
+1. Distribute it: the full recipe lives in [`DISTRIBUTION.md`](DISTRIBUTION.md) —
+   a gallery-proxy registry (`registry/`) serves our extension and passes
+   everything else through to open-vsx.org; the instance marketplace points at it
+   via `preset=custom`. Deploys automatically from main (`deploy:registry`).
 2. In the Web IDE, open Settings and fill: `werknario.proxyUrl`, `werknario.proxyToken`,
    `werknario.gitlabBaseUrl`, `werknario.projectId`. The GitLab token comes from the
    Web IDE session automatically (Spike A) — no PAT needed unless the session path fails.

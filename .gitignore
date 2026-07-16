@@ -10,6 +10,15 @@ coverage/
 .env
 .env.local
 
+# registry build artifact (produced by build-ext-store.sh / Docker build)
+registry/ext-store/
+
+# but DO keep the hermetic test fixtures, even though *.vsix / dist/ are ignored
+# globally — the registry tests read them, and CI clones only what's committed
+!registry/test/fixtures/store/**/*.vsix
+!registry/test/fixtures/store/**/dist/
+!registry/test/fixtures/store/**/dist/**
+
 # local test infra artifacts
 infra/local-gitlab/.boot-status
 infra/local-gitlab/boot.log

@@ -1,11 +1,27 @@
 # CI for the werknario Web-IDE agent. Commit to a branch -> build + typecheck +
 # all tests run automatically (CLAUDE.md §7). The real-model and live-GitLab
 # e2e tests skip unless their env is set, so the pipeline stays deterministic.
+#
+# main additionally deploys the registry service (the custom extension gallery
+# for the Web IDE, see docs/DISTRIBUTION.md) to the Hetzner app host via the
+# hetzner-shell runner — same no-SSH pattern as the baunario deploys.
 default:
   image: node:24-alpine
 
 stages:
   - verify
+  - deploy
+
+variables:
+  # Registry container identity on the Hetzner app host. Caddy routes
+  # vsx.xconcapps.de -> localhost:REG_HOST_PORT (host config, not this job).
+  REG_CONTAINER: "werknario-vsx"
+  REG_IMAGE: "werknario-vsx:latest"
+  REG_IMAGE_CANDIDATE: "werknario-vsx:candidate"
+  REG_IMAGE_PREV: "werknario-vsx:prev"
+  REG_HOST_PORT: "8091"
+  REG_PROBE_PORT: "8092"
+  REG_PUBLIC_BASE_URL: "https://vsx.xconcapps.de"
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
@@ -17,10 +33,99 @@ verify:
   script:
     - npm ci --cache .npm --prefer-offline
     - npm run build          # shared(emit) -> gitlab-client(check) -> proxy(emit) -> extension(esbuild bundle)
+    - npm run -w @werknario/registry build
     - npm run typecheck       # strict typecheck across all workspaces
-    - npm run test            # unit tests: shared, gitlab-client, proxy, extension
+    - npm run test            # unit tests: shared, gitlab-client, proxy, extension, registry
     - cd e2e && npx vitest run  # flagship pipeline (real-LLM + live-GitLab tests skip without env)
   artifacts:
     paths:
       - packages/extension/dist/web/extension.js
     expire_in: 1 week
+
+# ---------------------------------------------------------------------------
+# deploy:registry — runs on the shell runner that lives ON the Hetzner app
+# host (tag hetzner-shell; instance runner 4, docker-capable). Builds the
+# image there and replaces the container. Caddy on the host terminates TLS
+# for vsx.xconcapps.de and proxies to 127.0.0.1:$REG_HOST_PORT — this job
+# does NOT touch the Caddy config (host-managed, like baunario.de).
+#
+# Safety (review findings):
+# - Port guard: this host runs several products' containers. Fail loudly if a
+#   port is claimed by a foreign container instead of hijacking it.
+# - The candidate image is PROBED on $REG_PROBE_PORT (healthz + a real gallery
+#   query that must contain our extension) BEFORE the last-known-good container
+#   is touched. A broken image never replaces a working one.
+# - The previous image is kept as :prev; if the final swap somehow fails its
+#   health check, the job restores :prev and exits red.
+# ---------------------------------------------------------------------------
+deploy:registry:
+  stage: deploy
+  tags:
+    - hetzner-shell
+  # Manual on main: nothing lands on the shared Hetzner host until someone
+  # clicks play — deliberately, after DNS + Caddy for vsx.xconcapps.de exist
+  # (docs/DISTRIBUTION.md). The candidate is probed before the live swap and
+  # rolls back on failure, so a manual run is safe even pre-cut-over.
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: false
+  # no image: — shell executor runs directly on the host (default image ignored)
+  script:
+    # ports may only be held by our own containers
+    - |
+      for PORT_VAR in "$REG_HOST_PORT" "$REG_PROBE_PORT"; do
+        HOLDER=$(docker ps --format '{{.Names}} {{.Ports}}' | awk -v p=":${PORT_VAR}->" '$0 ~ p {print $1}')
+        case "$HOLDER" in ""|"$REG_CONTAINER"|"${REG_CONTAINER}-probe") ;; *)
+          echo "FATAL: host port ${PORT_VAR} is held by foreign container '$HOLDER'"; exit 1 ;;
+        esac
+      done
+    - docker build -f registry/Dockerfile -t $REG_IMAGE_CANDIDATE .
+    # --- probe the candidate before touching the live container ---
+    - docker rm -f ${REG_CONTAINER}-probe 2>/dev/null || true
+    - docker run -d --name ${REG_CONTAINER}-probe
+      -p 127.0.0.1:${REG_PROBE_PORT}:8080
+      -e PUBLIC_BASE_URL=$REG_PUBLIC_BASE_URL
+      $REG_IMAGE_CANDIDATE
+    - |
+      ok=""
+      for i in $(seq 1 15); do
+        curl -sf --max-time 5 "http://127.0.0.1:${REG_PROBE_PORT}/healthz" >/dev/null 2>&1 && { ok=1; break; }
+        sleep 1
+      done
+      [ -n "$ok" ] || { echo "FATAL: candidate image failed /healthz — live container untouched"; docker logs ${REG_CONTAINER}-probe --tail 50; docker rm -f ${REG_CONTAINER}-probe; exit 1; }
+    - |
+      RESP=$(curl -sf --max-time 30 -X POST "http://127.0.0.1:${REG_PROBE_PORT}/vscode/gallery/extensionquery" \
+        -H "Content-Type: application/json" \
+        --data '{"filters":[{"criteria":[{"filterType":7,"value":"xconcapps.werknario-webide-agent"}],"pageNumber":1,"pageSize":1,"sortBy":0,"sortOrder":0}],"assetTypes":[],"flags":950}') || RESP=""
+      echo "$RESP" | grep -q '"werknario-webide-agent"' || { echo "FATAL: own extension missing from candidate gallery response — live container untouched"; docker rm -f ${REG_CONTAINER}-probe; exit 1; }
+    - docker rm -f ${REG_CONTAINER}-probe
+    # --- candidate proven; swap (short gap, Caddy 502s during it) ---
+    - docker tag $REG_IMAGE $REG_IMAGE_PREV 2>/dev/null || true
+    - docker tag $REG_IMAGE_CANDIDATE $REG_IMAGE
+    - docker rm -f $REG_CONTAINER 2>/dev/null || true
+    - docker run -d --name $REG_CONTAINER --restart unless-stopped
+      -p 127.0.0.1:${REG_HOST_PORT}:8080
+      -e PUBLIC_BASE_URL=$REG_PUBLIC_BASE_URL
+      $REG_IMAGE
+    - |
+      ok=""
+      for i in $(seq 1 15); do
+        curl -sf --max-time 5 "http://127.0.0.1:${REG_HOST_PORT}/healthz" >/dev/null 2>&1 && { ok=1; break; }
+        sleep 1
+      done
+      if [ -z "$ok" ]; then
+        echo "FATAL: swapped container failed /healthz — rolling back to previous image"
+        docker logs $REG_CONTAINER --tail 50 || true
+        docker rm -f $REG_CONTAINER 2>/dev/null || true
+        if docker image inspect $REG_IMAGE_PREV >/dev/null 2>&1; then
+          docker run -d --name $REG_CONTAINER --restart unless-stopped \
+            -p 127.0.0.1:${REG_HOST_PORT}:8080 \
+            -e PUBLIC_BASE_URL=$REG_PUBLIC_BASE_URL \
+            $REG_IMAGE_PREV
+          echo "rollback container started from $REG_IMAGE_PREV"
+        fi
+        exit 1
+      fi
