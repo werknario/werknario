@@ -4,6 +4,13 @@ One autonomous session, 2026-07-15 night. Goal: build the feature head to toe an
 test every layer that can be driven deterministically without the live instance
 (which is updating) and without AWS Bedrock credentials (not available).
 
+## Update 2026-07-16 — repo is live
+The instance is back. Pushed to `x-concapps/werknario-webide-agent` (project 125,
+private). CI ran on the real runner: the `verify` job (npm build + typecheck +
+71 unit tests) passed in ~75s. Nothing about the local repo changed except this note.
+The gaps below still stand (real Web IDE click-through, Bedrock EU, self-hosted
+Open VSX).
+
 ## Ground rules honored
 - Live instance gitlab.xconcapps.de untouched (it is updating).
 - No AWS/Anthropic creds present → LLM path is a pluggable provider with a
