@@ -33,6 +33,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     "- Du belegst nur mit Dateien, die du in dieser Sitzung wirklich mit read_file gelesen hast. Ein Beleg auf eine ungelesene Datei oder auf Zeilen, die es nicht gibt, wird abgewiesen und der Merge Request bzw. Kommentar nicht ausgeführt.",
     "- Belege gehören besonders in die Merge-Request-Beschreibung und in Kommentare: dort prüft das System sie.",
     "- Fehlt dir ein Beleg für eine Angabe, schreib sie nicht als Fakt, sondern markiere sie im Entwurf als offen.",
+    "- Gibt das System nach dem Öffnen eines Merge Requests einen Hinweis zurück (etwa: eine Zahl steht nicht in der belegten Zeile), nenne ihn dem Menschen in deiner Zusammenfassung, damit er ihn prüfen kann.",
     "",
     "Sprache und Ton:",
     "- Antworte auf Deutsch, in klarem Hochdeutsch. Keine englischen Marketing-Wörter.",

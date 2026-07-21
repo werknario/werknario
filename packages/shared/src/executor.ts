@@ -1,7 +1,8 @@
 import { isApprovalRequired } from "./tools.js";
 import {
   ReadLedger,
-  countLines,
+  checkNumberGrounding,
+  describeNumberWarnings,
   describeProblems,
   formatReadResult,
   validateCitations,
@@ -141,6 +142,7 @@ export function createToolExecutor(
         : toolUse.name === "add_comment"
           ? asString(input["body"])
           : undefined;
+    let groundingNote = "";
     if (groundedText !== undefined) {
       const { problems } = validateCitations(groundedText, ledger);
       if (problems.length > 0) {
@@ -152,6 +154,13 @@ export function createToolExecutor(
           content: `${was}. Die Belege stimmen nicht:\n${describeProblems(problems)}\nLies die belegte Datei mit read_file und korrigiere die Belege (Format [Beleg: <pfad>:L<start>-L<ende>]), dann erneut versuchen.`,
           isError: true,
         };
+      }
+      // Belege existieren; jetzt inhaltliche Deckung der Zahlen prüfen. Das
+      // blockt nicht (Summen sind legitim), sondern hängt einen Hinweis für den
+      // Prüfer an die Erfolgsmeldung, den der Agent weitergibt.
+      const warnings = checkNumberGrounding(groundedText, ledger);
+      if (warnings.length > 0) {
+        groundingNote = `\n${describeNumberWarnings(warnings)}`;
       }
     }
 
@@ -187,9 +196,10 @@ export function createToolExecutor(
         const path = requireString(input, "path");
         assertSafeRepoPath(path);
         const text = truncate(await backend.readFile(path), maxRead);
-        // Nur die Zeilen aufzeichnen, die der Agent tatsächlich sieht: belegt er
-        // eine Zeile jenseits der (ggf. gekürzten) Länge, wird das abgewiesen.
-        ledger.record(path, countLines(text));
+        // Den (ggf. gekürzten) Text aufzeichnen, den der Agent sieht: belegt er
+        // eine Zeile jenseits davon, wird das abgewiesen; belegt er eine Zahl,
+        // wird sie gegen genau diesen Text geprüft.
+        ledger.record(path, text);
         return { content: formatReadResult(path, text) };
       }
 
@@ -221,7 +231,7 @@ export function createToolExecutor(
           ...(closesIssueIid ? { closesIssueIid } : {}),
         });
         return {
-          content: `Merge Request !${res.iid} geöffnet auf Branch ${res.sourceBranch}: ${res.webUrl}`,
+          content: `Merge Request !${res.iid} geöffnet auf Branch ${res.sourceBranch}: ${res.webUrl}${groundingNote}`,
         };
       }
 
@@ -242,7 +252,9 @@ export function createToolExecutor(
           iid: iidRaw,
           body,
         });
-        return { content: `Kommentar gepostet.${res.url ? " " + res.url : ""}` };
+        return {
+          content: `Kommentar gepostet.${res.url ? " " + res.url : ""}${groundingNote}`,
+        };
       }
 
       default:

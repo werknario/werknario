@@ -185,6 +185,45 @@ describe("createToolExecutor", () => {
     expect(r.content).toContain("http://gitlab/mr/7");
   });
 
+  it("opens the MR but appends a grounding hint when a cited number is not in the cited line", async () => {
+    const backend = fakeBackend({
+      readFile: vi.fn(async () => "Split Sheet\nOsterloh: 12,5 %\noffen"),
+    });
+    const approve = vi.fn(async () => true);
+    const exec = createToolExecutor(backend, { onApprovalRequest: approve });
+    await exec(use("read_file", { path: "vertraege/split.md" }));
+    const r = await exec(
+      use("create_merge_request", {
+        title: "T",
+        description: "Osterloh hält 25 % [Beleg: vertraege/split.md:L2].",
+        source_branch: "b",
+      }),
+    );
+    // Nicht geblockt: der MR wird geöffnet (25 % könnte berechnet sein).
+    expect(backend.createMergeRequest).toHaveBeenCalledOnce();
+    expect(r.content).toContain("http://gitlab/mr/7");
+    // Aber der Hinweis auf die ungedeckte Zahl hängt dran.
+    expect(r.content).toMatch(/Hinweis für die Prüfung/i);
+    expect(r.content).toContain("25");
+  });
+
+  it("adds no grounding hint when the cited numbers match the source", async () => {
+    const backend = fakeBackend({
+      readFile: vi.fn(async () => "Split Sheet\nOsterloh: 12,5 %\noffen"),
+    });
+    const exec = createToolExecutor(backend, { onApprovalRequest: async () => true });
+    await exec(use("read_file", { path: "vertraege/split.md" }));
+    const r = await exec(
+      use("create_merge_request", {
+        title: "T",
+        description: "Osterloh hält 12,5 % [Beleg: vertraege/split.md:L2].",
+        source_branch: "b",
+      }),
+    );
+    expect(backend.createMergeRequest).toHaveBeenCalledOnce();
+    expect(r.content).not.toMatch(/Hinweis für die Prüfung/i);
+  });
+
   it("blocks add_comment when a Beleg line is out of range", async () => {
     const backend = fakeBackend({ readFile: vi.fn(async () => "nur\ndrei\nzeilen") });
     const exec = createToolExecutor(backend, { onApprovalRequest: async () => true });

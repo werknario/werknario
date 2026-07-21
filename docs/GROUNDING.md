@@ -23,19 +23,27 @@ Der Strang hat zwei Hälften: **Repo-Retrieval** (der Agent findet, wo ein Fakt 
 2. **Belegen.** Jede inhaltliche Aussage über das Substrat belegt der Agent im Format
    `[Beleg: <pfad>:L<start>-L<ende>]` (auch `:L<zeile>` für eine Zeile oder ohne Zeilenangabe für die
    ganze Datei). Der System-Prompt und die Tool-Beschreibungen fordern das ein.
-3. **Prüfen vor dem Schreiben.** Bevor ein teamsichtbarer Schreibvorgang läuft (`create_merge_request`,
-   `add_comment`), prüft der Executor die Belege im Text gegen ein Ledger dessen, was in dieser
-   Sitzung wirklich gelesen wurde. Ein Beleg auf eine nie gelesene Datei oder auf Zeilen jenseits der
-   gelesenen Länge blockt den Vorgang, mit einer korrigierbaren Meldung an den Agenten. Die Prüfung
-   läuft vor der Mensch-Genehmigung, damit ein erfundener Beleg gar nicht erst vorgelegt wird.
+3. **Herkunft prüfen (harter Block).** Bevor ein teamsichtbarer Schreibvorgang läuft
+   (`create_merge_request`, `add_comment`), prüft der Executor die Belege im Text gegen ein Ledger
+   dessen, was in dieser Sitzung wirklich gelesen wurde. Ein Beleg auf eine nie gelesene Datei oder
+   auf Zeilen jenseits der gelesenen Länge blockt den Vorgang, mit einer korrigierbaren Meldung an den
+   Agenten. Die Prüfung läuft vor der Mensch-Genehmigung, damit ein erfundener Beleg gar nicht erst
+   vorgelegt wird.
+4. **Zahlen prüfen (Hinweis, kein Block).** Ist die Herkunft in Ordnung, prüft der Executor zusätzlich,
+   ob jede Zahl in einem belegten Satz auch in der belegten Zeile vorkommt. Fehlt sie, hängt ein
+   Hinweis für den Prüfer an die Erfolgsmeldung. Das blockt bewusst nicht: eine Zahl kann falsch sein,
+   oder berechnet bzw. aggregiert (eine Summe steht nicht wörtlich in der Quelle). Ein harter Block
+   würde legitime Merge Requests abweisen und die Prüfung nach kurzer Zeit unglaubwürdig machen. Der
+   Agent gibt den Hinweis in seiner Zusammenfassung an den Menschen weiter.
 
 ## Bewusste Grenze
 
-Geprüft wird, **dass** ein Beleg auf real Gelesenes zeigt, nicht **ob** die zitierte Zeile die
-Aussage inhaltlich stützt. Der Fall „Agent zitiert eine echte Zeile, die die Behauptung aber nicht
-belegt" bleibt offen. Das ist der nächste Schritt: ein Groundedness-Gate, das die Behauptung gegen
-den zitierten Inhalt prüft (LLM-Judge), bevor der Mensch genehmigt. Siehe Fahrplan P0/P1 im
-werknario-Repo.
+Geprüft wird die Herkunft (hart) und die Deckung von **Zahlen** (beratend). Nicht geprüft ist, ob eine
+zitierte Zeile eine **sprachliche** Behauptung inhaltlich stützt („Agent zitiert eine echte Zeile, die
+die Aussage aber nicht belegt"). Das ist der nächste mögliche Schritt: ein Groundedness-Gate mit
+LLM-Judge, das die ganze Behauptung gegen den zitierten Inhalt bewertet. Es hat Kosten pro Merge
+Request und kann selbst irren, deshalb ist es bewusst zurückgestellt, bis die deterministischen
+Prüfungen im echten Betrieb ihre Grenzen zeigen. Siehe Fahrplan im werknario-Repo.
 
 Ebenfalls noch offen: der Commit-SHA im Beleg. Aktuell prüft der Kontrakt Pfad und Zeilenspanne. Der
 SHA kommt hinzu, sobald das Backend beim Lesen den Commit mitliefert, an dem gelesen wurde. Damit

@@ -79,25 +79,33 @@ export function parseCitations(text: string): Citation[] {
 }
 
 /**
- * Merkt sich, welche Dateien in dieser Sitzung gelesen wurden und wie viele
- * Zeilen der Agent jeweils gesehen hat. Lebensdauer = eine Konversation, wie der
- * Backend. Kein globaler Zustand.
+ * Merkt sich, welche Dateien in dieser Sitzung gelesen wurden und mit welchem
+ * Inhalt der Agent sie gesehen hat. Der Inhalt wird gebraucht, um zu prüfen, ob
+ * eine belegte Zahl in der belegten Zeile wirklich vorkommt (checkNumberGrounding).
+ * Lebensdauer = eine Konversation, wie der Backend. Kein globaler Zustand.
  */
 export class ReadLedger {
-  private readonly counts = new Map<string, number>();
+  private readonly lines = new Map<string, string[]>();
 
-  /** Hält fest, dass `path` mit `lineCount` sichtbaren Zeilen gelesen wurde. */
-  record(path: string, lineCount: number): void {
-    this.counts.set(path, lineCount);
+  /** Hält den (ggf. gekürzten) Text fest, den der Agent von `path` gesehen hat. */
+  record(path: string, text: string): void {
+    this.lines.set(path, text.split("\n"));
   }
 
   /** Zeilenzahl der zuletzt gelesenen Fassung, oder undefined wenn nie gelesen. */
   lineCountOf(path: string): number | undefined {
-    return this.counts.get(path);
+    return this.lines.get(path)?.length;
+  }
+
+  /** Text der Zeilen `startLine`..`endLine` (1-basiert, inklusive), oder undefined. */
+  spanText(path: string, startLine: number, endLine: number): string | undefined {
+    const lines = this.lines.get(path);
+    if (!lines) return undefined;
+    return lines.slice(startLine - 1, endLine).join("\n");
   }
 
   readPaths(): string[] {
-    return [...this.counts.keys()];
+    return [...this.lines.keys()];
   }
 }
 
@@ -146,4 +154,74 @@ export function validateCitations(
 /** Menschlich lesbare Sammelmeldung der Belegprobleme, für den Agenten. */
 export function describeProblems(problems: GroundingProblem[]): string {
   return problems.map((p) => `- ${p.reason}`).join("\n");
+}
+
+export interface NumberWarning {
+  /** Der Roh-Beleg, in dessen Zeile die Zahl fehlt. */
+  raw: string;
+  path: string;
+  /** Die Zahl aus dem belegten Satz, die in der belegten Zeile nicht vorkommt. */
+  number: string;
+}
+
+// Zahlen inkl. deutscher Schreibweise: 12, 12,5, 1.234, 1.234,56. Trennzeichen
+// am Rand werden abgeschnitten, damit "Zeile 2." als "2" gilt.
+const NUMBER_RE = /\d[\d.,]*/g;
+
+function extractNumbers(claim: string): string[] {
+  const out: string[] = [];
+  for (const m of claim.matchAll(NUMBER_RE)) {
+    const n = m[0].replace(/[.,]+$/, "");
+    if (n.length > 0) out.push(n);
+  }
+  return out;
+}
+
+/**
+ * Inhaltliche Deckung, deterministisch und beratend: jede Zahl in einem belegten
+ * Satz sollte in der belegten Zeile vorkommen. Tut sie es nicht, ist das ein
+ * Hinweis für den menschlichen Prüfer, kein Block: die Zahl kann falsch sein,
+ * oder berechnet bzw. aggregiert (eine Summe steht nicht wörtlich in der Quelle).
+ *
+ * Der "belegte Satz" ist der Text vom vorherigen Beleg (oder Anfang) bis zu
+ * diesem Beleg. Belege auf ungelesene Dateien oder kaputte Spannen werden
+ * übersprungen, die fängt bereits validateCitations als harten Block.
+ */
+export function checkNumberGrounding(
+  text: string,
+  ledger: ReadLedger,
+): NumberWarning[] {
+  const warnings: NumberWarning[] = [];
+  let cursor = 0;
+
+  for (const m of text.matchAll(CITATION_RE)) {
+    const raw = m[0] ?? "";
+    const idx = m.index ?? 0;
+    const claim = text.slice(cursor, idx);
+    cursor = idx + raw.length;
+
+    const path = m[1];
+    if (path === undefined) continue;
+    const lineCount = ledger.lineCountOf(path);
+    if (lineCount === undefined) continue;
+
+    const start = m[2] !== undefined ? Number(m[2]) : 1;
+    const end = m[3] !== undefined ? Number(m[3]) : m[2] !== undefined ? Number(m[2]) : lineCount;
+    if (start < 1 || end > lineCount || start > end) continue;
+
+    const span = ledger.spanText(path, start, end) ?? "";
+    for (const number of extractNumbers(claim)) {
+      if (!span.includes(number)) {
+        warnings.push({ raw, path, number });
+      }
+    }
+  }
+
+  return warnings;
+}
+
+/** Menschlich lesbarer Hinweis auf ungedeckte Zahlen, für den Prüfer. */
+export function describeNumberWarnings(warnings: NumberWarning[]): string {
+  const lines = warnings.map((w) => `- ${w.number} (${w.raw})`);
+  return `Hinweis für die Prüfung: diese Zahlen im belegten Text stehen nicht in der belegten Zeile. Bitte prüfen, ob sie falsch sind oder berechnet/aggregiert:\n${lines.join("\n")}`;
 }
