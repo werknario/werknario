@@ -3,6 +3,7 @@ import type { ToolDefinition } from "./types.js";
 /** Canonical tool names. Kept as a const object so callers get autocompletion. */
 export const TOOL = {
   LIST_FILES: "list_files",
+  SEARCH_FILES: "search_files",
   READ_FILE: "read_file",
   PROPOSE_EDIT: "propose_edit",
   CREATE_MERGE_REQUEST: "create_merge_request",
@@ -31,6 +32,26 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
             "Folder path relative to the repo root. Omit or empty string for the root.",
         },
       },
+    },
+  },
+  {
+    name: TOOL.SEARCH_FILES,
+    description:
+      "Search the substrate for a term (case-insensitive substring) to find where a fact lives before you read and cite it. Returns matching path:line: snippet lines. A hit is a lead, not a source: read the file with read_file before citing it.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "The term to look for, e.g. a name, number, or keyword.",
+        },
+        path: {
+          type: "string",
+          description:
+            "Optional folder to limit the search to, relative to the repo root. Omit for the whole repo.",
+        },
+      },
+      required: ["query"],
     },
   },
   {

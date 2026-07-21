@@ -6,6 +6,7 @@ import {
   formatReadResult,
   validateCitations,
 } from "./grounding.js";
+import { formatSearchResults, searchSubstrate } from "./search.js";
 import type { ToolExecutionResult, ToolExecutor } from "./loop.js";
 import type { ToolUseBlock } from "./types.js";
 
@@ -170,6 +171,16 @@ export function createToolExecutor(
         const entries = await backend.listFiles(path);
         const listing = entries.length ? entries.join("\n") : "(leer)";
         return { content: truncate(listing, maxRead) };
+      }
+
+      case "search_files": {
+        const query = requireString(input, "query");
+        const path = asString(input["path"]);
+        assertSafeRepoPath(path);
+        // Suche ist Fund, kein Beleg: sie zeichnet nichts im Ledger auf. Der
+        // Agent liest die gefundene Datei danach mit read_file und belegt erst dann.
+        const result = await searchSubstrate(backend, query, path);
+        return { content: formatSearchResults(query, result) };
       }
 
       case "read_file": {

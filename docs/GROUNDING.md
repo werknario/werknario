@@ -6,9 +6,18 @@ hat, mit Angabe der Stelle. Hintergrund und Marktbeleg stehen in
 `werknario/docs/audit/2026-07-21-befund-markt-und-produkt.md` (Abschnitt 4) und in der
 Retrieval-Entscheidung `werknario/docs/decisions/2026-07-21-retrieval-schicht-lightrag-vs-plain.md`.
 
+Der Strang hat zwei Hälften: **Repo-Retrieval** (der Agent findet, wo ein Fakt steht) und
+**Zitatzwang** (der Agent belegt es und darf nur belegen, was er gelesen hat). Beide sind gebaut.
+
 ## Was der Kontrakt tut
 
-1. **Lesen mit Zeilennummern.** `read_file` gibt seinen Inhalt mit Zeilennummern zurück (`L1: …`,
+1. **Finden.** `search_files` sucht einen Begriff (Teilstring, Groß-/Kleinschreibung egal) über die
+   Dateien und liefert `pfad:zeile: ausschnitt` zurück. Ein Treffer ist ein Fund, kein Beleg: der
+   Agent liest die Datei danach mit `read_file` und zitiert erst dann. So sieht er den Kontext, statt
+   eine Zeile aus dem Zusammenhang zu zitieren. Die Suche zeichnet nichts fürs Belegen auf. Sie läuft
+   portabel über `listFiles`/`readFile`, also ohne Suchmaschine; für die kleinen bis mittleren
+   Substrate reicht das (Begründung in der Retrieval-Entscheidung im werknario-Repo).
+2. **Lesen mit Zeilennummern.** `read_file` gibt seinen Inhalt mit Zeilennummern zurück (`L1: …`,
    `L2: …`), plus eine Kopfzeile mit Pfad und Zeilenzahl. Der Agent hat damit stabile Koordinaten,
    auf die er sich beziehen kann.
 2. **Belegen.** Jede inhaltliche Aussage über das Substrat belegt der Agent im Format

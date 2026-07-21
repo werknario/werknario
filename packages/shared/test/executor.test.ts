@@ -118,6 +118,30 @@ describe("createToolExecutor", () => {
     expect(r.content).toContain("Unbekanntes Werkzeug");
   });
 
+  it("searches the substrate and returns path:line hits without recording them for citation", async () => {
+    const backend = fakeBackend({
+      listFiles: vi.fn(async (p: string) => (p === "" ? ["a.md", "b.md"] : [])),
+      readFile: vi.fn(async (p: string) =>
+        p === "a.md" ? "nichts hier" : "hier steht Osterloh drin",
+      ),
+    });
+    const exec = createToolExecutor(backend);
+    const r = await exec(use("search_files", { query: "Osterloh" }));
+    expect(r.content).toContain("b.md:L1");
+    expect(r.content).toMatch(/read_file/);
+    // Ein Suchtreffer ist kein Beleg: ein MR, der die gefundene Datei zitiert,
+    // ohne sie gelesen zu haben, wird trotzdem geblockt.
+    const mr = await exec(
+      use("create_merge_request", {
+        title: "T",
+        description: "Fakt [Beleg: b.md:L1].",
+        source_branch: "x",
+      }),
+    );
+    expect(backend.createMergeRequest).not.toHaveBeenCalled();
+    expect(mr.content).toMatch(/nie gelesen/i);
+  });
+
   it("read_file returns line-numbered content and names the file", async () => {
     const backend = fakeBackend({ readFile: vi.fn(async () => "erste\nzweite") });
     const exec = createToolExecutor(backend);
