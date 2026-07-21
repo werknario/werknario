@@ -36,7 +36,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: TOOL.READ_FILE,
     description:
-      "Read the full text of a file in the repository. Use before proposing an edit so you work from the real content.",
+      "Read the full text of a file in the repository. Use before proposing an edit so you work from the real content. The result is returned with line numbers (L1, L2, …) so you can cite exact line spans as [Beleg: <path>:L<start>-L<end>].",
     input_schema: {
       type: "object",
       properties: {
@@ -84,7 +84,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         description: {
           type: "string",
           description:
-            "Merge request description, in German. Explain what changed and why. Mention the source substrate file(s).",
+            "Merge request description, in German. Explain what changed and why. Every factual claim about the substrate (names, numbers, shares, dates) must cite its source as [Beleg: <path>:L<start>-L<end>], using only files you read this session. Citations to an unread file or non-existent lines are rejected and the merge request is not opened.",
         },
         source_branch: {
           type: "string",
@@ -120,7 +120,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "number",
           description: "The iid of the issue or merge request.",
         },
-        body: { type: "string", description: "The comment text, in German." },
+        body: {
+          type: "string",
+          description:
+            "The comment text, in German. Any factual claim about the substrate must cite its source as [Beleg: <path>:L<start>-L<end>], using only files you read this session; broken citations are rejected and the comment is not posted.",
+        },
       },
       required: ["target_type", "iid", "body"],
     },

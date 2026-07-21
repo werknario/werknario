@@ -1,4 +1,11 @@
 import { isApprovalRequired } from "./tools.js";
+import {
+  ReadLedger,
+  countLines,
+  describeProblems,
+  formatReadResult,
+  validateCitations,
+} from "./grounding.js";
 import type { ToolExecutionResult, ToolExecutor } from "./loop.js";
 import type { ToolUseBlock } from "./types.js";
 
@@ -117,9 +124,35 @@ export function createToolExecutor(
   options: ToolExecutorOptions = {},
 ): ToolExecutor {
   const maxRead = options.maxReadChars ?? DEFAULT_MAX_READ_CHARS;
+  // Was in dieser Konversation gelesen wurde. Der Zitat-Kontrakt prüft Belege
+  // dagegen: der Agent darf nur belegen, was er wirklich gelesen hat.
+  const ledger = new ReadLedger();
 
   return async (toolUse: ToolUseBlock): Promise<ToolExecutionResult> => {
     const input = toolUse.input ?? {};
+
+    // Grounding-Gate: teamsichtbare Schreibvorgänge dürfen keine Quelle nennen,
+    // die der Agent nie gelesen hat. Läuft VOR der Mensch-Genehmigung, damit ein
+    // erfundener Beleg gar nicht erst zur Bestätigung vorgelegt wird.
+    const groundedText =
+      toolUse.name === "create_merge_request"
+        ? asString(input["description"])
+        : toolUse.name === "add_comment"
+          ? asString(input["body"])
+          : undefined;
+    if (groundedText !== undefined) {
+      const { problems } = validateCitations(groundedText, ledger);
+      if (problems.length > 0) {
+        const was =
+          toolUse.name === "create_merge_request"
+            ? "Der Merge Request wurde NICHT geöffnet"
+            : "Der Kommentar wurde NICHT gepostet";
+        return {
+          content: `${was}. Die Belege stimmen nicht:\n${describeProblems(problems)}\nLies die belegte Datei mit read_file und korrigiere die Belege (Format [Beleg: <pfad>:L<start>-L<ende>]), dann erneut versuchen.`,
+          isError: true,
+        };
+      }
+    }
 
     if (isApprovalRequired(toolUse.name) && options.onApprovalRequest) {
       const approved = await options.onApprovalRequest(toolUse);
@@ -142,8 +175,11 @@ export function createToolExecutor(
       case "read_file": {
         const path = requireString(input, "path");
         assertSafeRepoPath(path);
-        const text = await backend.readFile(path);
-        return { content: truncate(text, maxRead) };
+        const text = truncate(await backend.readFile(path), maxRead);
+        // Nur die Zeilen aufzeichnen, die der Agent tatsächlich sieht: belegt er
+        // eine Zeile jenseits der (ggf. gekürzten) Länge, wird das abgewiesen.
+        ledger.record(path, countLines(text));
+        return { content: formatReadResult(path, text) };
       }
 
       case "propose_edit": {

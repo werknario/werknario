@@ -118,6 +118,65 @@ describe("createToolExecutor", () => {
     expect(r.content).toContain("Unbekanntes Werkzeug");
   });
 
+  it("read_file returns line-numbered content and names the file", async () => {
+    const backend = fakeBackend({ readFile: vi.fn(async () => "erste\nzweite") });
+    const exec = createToolExecutor(backend);
+    const r = await exec(use("read_file", { path: "a.md" }));
+    expect(r.content).toContain("a.md (2 Zeilen)");
+    expect(r.content).toContain("L1: erste");
+    expect(r.content).toContain("L2: zweite");
+  });
+
+  it("blocks create_merge_request when a Beleg points to a file never read, before asking the human", async () => {
+    const backend = fakeBackend();
+    const approve = vi.fn(async () => true);
+    const exec = createToolExecutor(backend, { onApprovalRequest: approve });
+    const r = await exec(
+      use("create_merge_request", {
+        title: "T",
+        description: "Fiete Osterloh hält 12,5% [Beleg: geheim/andere.md:L1].",
+        source_branch: "b",
+      }),
+    );
+    expect(backend.createMergeRequest).not.toHaveBeenCalled();
+    expect(approve).not.toHaveBeenCalled();
+    expect(r.content).toMatch(/NICHT geöffnet/i);
+    expect(r.content).toMatch(/nie gelesen/i);
+  });
+
+  it("allows create_merge_request when the Beleg points to a file read this session, within range", async () => {
+    const backend = fakeBackend({ readFile: vi.fn(async () => "z1\nz2\nz3") });
+    const approve = vi.fn(async () => true);
+    const exec = createToolExecutor(backend, { onApprovalRequest: approve });
+    await exec(use("read_file", { path: "vertraege/split.md" }));
+    const r = await exec(
+      use("create_merge_request", {
+        title: "T",
+        description: "Anteil steht in Zeile 2 [Beleg: vertraege/split.md:L2].",
+        source_branch: "b",
+      }),
+    );
+    expect(approve).toHaveBeenCalledOnce();
+    expect(backend.createMergeRequest).toHaveBeenCalledOnce();
+    expect(r.content).toContain("http://gitlab/mr/7");
+  });
+
+  it("blocks add_comment when a Beleg line is out of range", async () => {
+    const backend = fakeBackend({ readFile: vi.fn(async () => "nur\ndrei\nzeilen") });
+    const exec = createToolExecutor(backend, { onApprovalRequest: async () => true });
+    await exec(use("read_file", { path: "k/x.csv" }));
+    const r = await exec(
+      use("add_comment", {
+        target_type: "merge_request",
+        iid: 4,
+        body: "Wert steht hier [Beleg: k/x.csv:L9].",
+      }),
+    );
+    expect(backend.addComment).not.toHaveBeenCalled();
+    expect(r.content).toMatch(/NICHT gepostet/i);
+    expect(r.content).toMatch(/nur 3 Zeilen/i);
+  });
+
   it("blocks path traversal on read_file / list_files / propose_edit before the backend runs", async () => {
     const backend = fakeBackend();
     const exec = createToolExecutor(backend);
