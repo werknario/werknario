@@ -15,6 +15,13 @@ import type { Provider } from "./index.js";
 // is actually used.
 const BEDROCK_SDK_MODULE = "@anthropic-ai/bedrock-sdk";
 
+interface BedrockUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_creation_input_tokens?: number | null;
+  cache_read_input_tokens?: number | null;
+}
+
 interface BedrockClient {
   messages: {
     create(params: Record<string, unknown>): Promise<{
@@ -22,6 +29,7 @@ interface BedrockClient {
       content: unknown;
       stop_reason?: string | null;
       model?: string;
+      usage?: BedrockUsage;
     }>;
   };
 }
@@ -69,18 +77,37 @@ export function createBedrockProvider(config: ProxyConfig): Provider {
       const response = await client.messages.create({
         model: toModelId(req.model || config.model),
         max_tokens: req.max_tokens || 8192,
-        system: req.system,
+        // Prompt caching: cache the (large, per-turn identical) system prompt.
+        // Cache reads cost 10% of the input base price. Available on Bedrock.
+        system: req.system
+          ? [
+              {
+                type: "text",
+                text: req.system,
+                cache_control: { type: "ephemeral" },
+              },
+            ]
+          : undefined,
         messages: req.messages,
         tools: req.tools,
         thinking: { type: "disabled" },
       });
 
+      const u = response.usage;
       return {
         id: response.id,
         role: "assistant",
         content: response.content as ContentBlock[],
         stop_reason: response.stop_reason ?? "end_turn",
         model: response.model,
+        usage: u
+          ? {
+              input_tokens: u.input_tokens ?? 0,
+              output_tokens: u.output_tokens ?? 0,
+              cache_creation_input_tokens: u.cache_creation_input_tokens ?? undefined,
+              cache_read_input_tokens: u.cache_read_input_tokens ?? undefined,
+            }
+          : undefined,
       };
     },
   };

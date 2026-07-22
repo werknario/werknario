@@ -4,6 +4,7 @@ import {
   type ContentBlock,
   type LlmRequest,
   type LlmResponse,
+  type LlmUsage,
   type Message,
 } from "@werknario/shared";
 import type { Provider } from "./index.js";
@@ -79,6 +80,21 @@ function hasResultFor(messages: Message[], toolName: string): boolean {
   return false;
 }
 
+/**
+ * Deterministic token usage per turn, so the token account can be exercised
+ * offline. Turn 0 writes the system prompt into the cache; later turns read it
+ * back (mirrors what prompt caching does in the real providers). No randomness.
+ */
+function mockUsage(messages: Message[]): LlmUsage {
+  const n = toolUseCount(messages);
+  return {
+    input_tokens: 1000 + n * 200,
+    output_tokens: 120,
+    cache_creation_input_tokens: n === 0 ? 800 : 0,
+    cache_read_input_tokens: n === 0 ? 0 : 800,
+  };
+}
+
 type Stage = "read_file" | "propose_edit" | "create_merge_request" | "done";
 
 function nextStage(messages: Message[]): Stage {
@@ -99,6 +115,7 @@ export function createMockProvider(): Provider {
     async createMessage(req: LlmRequest): Promise<LlmResponse> {
       const stage = nextStage(req.messages);
       const n = toolUseCount(req.messages) + 1;
+      const usage = mockUsage(req.messages);
 
       if (stage === "read_file") {
         const path = extractPath(lastUserText(req.messages));
@@ -114,6 +131,7 @@ export function createMockProvider(): Provider {
             },
           ],
           stop_reason: "tool_use",
+          usage,
         };
       }
 
@@ -133,6 +151,7 @@ export function createMockProvider(): Provider {
             },
           ],
           stop_reason: "tool_use",
+          usage,
         };
       }
 
@@ -153,6 +172,7 @@ export function createMockProvider(): Provider {
             },
           ],
           stop_reason: "tool_use",
+          usage,
         };
       }
 
@@ -165,6 +185,7 @@ export function createMockProvider(): Provider {
           },
         ],
         stop_reason: "end_turn",
+        usage,
       };
     },
   };

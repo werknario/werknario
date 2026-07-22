@@ -40,6 +40,21 @@ export type StopReason =
   | "stop_sequence"
   | (string & {});
 
+/**
+ * Token usage of one model turn, mirrored from the Anthropic Messages API. The
+ * proxy passes it through so the agent can keep a running token/cost account.
+ * Total billed input = input_tokens + cache_creation_input_tokens +
+ * cache_read_input_tokens; output_tokens is already the full output count.
+ */
+export interface LlmUsage {
+  input_tokens: number;
+  output_tokens: number;
+  /** Tokens newly written to the prompt cache in this call. */
+  cache_creation_input_tokens?: number;
+  /** Tokens served from the prompt cache in this call (cheapest). */
+  cache_read_input_tokens?: number;
+}
+
 /** What the proxy returns for one model turn. */
 export interface LlmResponse {
   id?: string;
@@ -47,6 +62,7 @@ export interface LlmResponse {
   content: ContentBlock[];
   stop_reason: StopReason;
   model?: string;
+  usage?: LlmUsage;
 }
 
 export interface ToolDefinition {

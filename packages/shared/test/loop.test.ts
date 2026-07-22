@@ -223,3 +223,77 @@ describe("runAgentLoop", () => {
     expect(req.tools).toHaveLength(1);
   });
 });
+
+/** A model turn that also reports token usage. */
+function textWithUsage(
+  t: string,
+  model: string,
+  usage: { input_tokens: number; output_tokens: number },
+): LlmResponse {
+  return {
+    role: "assistant",
+    content: [{ type: "text", text: t }],
+    stop_reason: "end_turn",
+    model,
+    usage,
+  };
+}
+
+describe("runAgentLoop — token accounting and budget gate", () => {
+  it("records usage into the running totals and fires onUsage", async () => {
+    const callLlm = scriptedCaller([
+      textWithUsage("fertig", "claude-haiku-4-5", {
+        input_tokens: 1_000_000,
+        output_tokens: 1_000_000,
+      }),
+    ]);
+    const onUsage = vi.fn();
+    const res = await runAgentLoop([{ role: "user", content: "hi" }], {
+      ...baseOpts,
+      callLlm,
+      executeTool: vi.fn(),
+      events: { onUsage },
+    });
+    expect(res.usage.calls).toBe(1);
+    expect(res.usage.inputTokens).toBe(1_000_000);
+    expect(res.usage.costUsd).toBeCloseTo(6.0, 6); // haiku $1 in + $5 out
+    expect(onUsage).toHaveBeenCalledOnce();
+  });
+
+  it("stops with stopped:'budget' when the gate trips, without executing the pending tool", async () => {
+    const expensive: LlmResponse = {
+      role: "assistant",
+      content: [{ type: "tool_use", id: "t", name: "read_file", input: { path: "a.md" } }],
+      stop_reason: "tool_use",
+      model: "claude-opus-4-8",
+      usage: { input_tokens: 0, output_tokens: 1_000_000 }, // opus $25
+    };
+    const callLlm = scriptedCaller([expensive, text("unreached")]);
+    const executeTool = vi.fn(async () => ({ content: "x" }));
+    const res = await runAgentLoop([{ role: "user", content: "go" }], {
+      ...baseOpts,
+      callLlm,
+      executeTool,
+      budgetGate: (totals) => (totals.costUsd >= 5 ? "stop" : "continue"),
+    });
+    expect(res.stopped).toBe("budget");
+    expect(res.turns).toBe(1);
+    expect(executeTool).not.toHaveBeenCalled();
+    // transcript stays valid: the pending tool_use gets a paired tool_result
+    const last = res.messages[res.messages.length - 1];
+    expect(last?.role).toBe("user");
+  });
+
+  it("uses selectModelForTurn to override the model for the next turn", async () => {
+    const callLlm = scriptedCaller([text("ok")]);
+    await runAgentLoop([{ role: "user", content: "hi" }], {
+      ...baseOpts,
+      model: "claude-sonnet-5",
+      callLlm,
+      executeTool: vi.fn(),
+      selectModelForTurn: () => "claude-haiku-4-5",
+    });
+    const req = callLlm.mock.calls[0]?.[0] as { model: string };
+    expect(req.model).toBe("claude-haiku-4-5");
+  });
+});

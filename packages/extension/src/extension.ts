@@ -153,6 +153,15 @@ class ChatPanel {
           onToolResult: (b) =>
             this.post({ type: "toolResult", label: toolUseLabel(b) }),
           onTurn: (n) => this.post({ type: "status", text: `Runde ${n}…` }),
+          // Sichtbarer Token-Zähler: der Nutzer soll sehen, wie viel schon
+          // verbraucht wurde. Kosten nur, wenn das Modell in der Registry steht.
+          onUsage: (_usage, totals) =>
+            this.post({
+              type: "status",
+              text:
+                `Verbraucht: ${(totals.inputTokens + totals.outputTokens).toLocaleString("de-DE")} Token` +
+                (totals.costUsd > 0 ? ` (~${totals.costUsd.toFixed(2)} $)` : ""),
+            }),
         },
       });
       // Persist the full transcript so the next message continues this conversation.

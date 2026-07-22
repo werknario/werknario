@@ -1,6 +1,10 @@
 import "dotenv/config";
 
-export type ProviderName = "mock" | "anthropic" | "bedrock";
+export type ProviderName =
+  | "mock"
+  | "anthropic"
+  | "bedrock"
+  | "openai-compatible";
 
 export interface ProxyConfig {
   provider: ProviderName;
@@ -16,6 +20,11 @@ export interface ProxyConfig {
     accessKeyId: string | undefined;
     secretAccessKey: string | undefined;
   };
+  /** Für jeden OpenAI-kompatiblen Endpunkt (Mistral, Kimi, DeepSeek, Qwen, vLLM). */
+  openaiCompatible: {
+    baseUrl: string | undefined;
+    apiKey: string | undefined;
+  };
 }
 
 function parseAllowedOrigins(raw: string | undefined): string[] | "*" {
@@ -28,7 +37,14 @@ function parseAllowedOrigins(raw: string | undefined): string[] | "*" {
 }
 
 function parseProvider(raw: string | undefined): ProviderName {
-  if (raw === "anthropic" || raw === "bedrock" || raw === "mock") return raw;
+  if (
+    raw === "anthropic" ||
+    raw === "bedrock" ||
+    raw === "mock" ||
+    raw === "openai-compatible"
+  ) {
+    return raw;
+  }
   return "mock";
 }
 
@@ -47,6 +63,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ProxyConfig {
       region: env.AWS_REGION,
       accessKeyId: env.AWS_ACCESS_KEY_ID,
       secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+    },
+    openaiCompatible: {
+      baseUrl: env.LLM_OPENAI_COMPAT_BASE_URL,
+      apiKey: env.LLM_OPENAI_COMPAT_API_KEY,
     },
   };
 }
