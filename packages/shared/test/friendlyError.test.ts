@@ -134,6 +134,44 @@ describe("friendlyError: rate_limit", () => {
   });
 });
 
+describe("friendlyError: missing_key", () => {
+  // The Anthropic SDK throws this locally when no key is set at all (no HTTP
+  // status), distinct from an invalid key (a vendor 401 -> auth).
+  const input = {
+    message: "Could not resolve authentication method. Expected either apiKey or authToken to be set.",
+  };
+
+  it("classifies a totally-absent key as missing_key, not auth", () => {
+    const r = friendlyError(input, "en");
+    expect(r.code).toBe("missing_key");
+    expect(r.message).toMatch(/no api key/i);
+    expect(r.hint).toMatch(/mock/i);
+  });
+
+  it("de", () => {
+    const r = friendlyError(input, "de");
+    expect(r.code).toBe("missing_key");
+    expect(r.hint).toMatch(/mock/i);
+  });
+});
+
+describe("friendlyError: network", () => {
+  const input = { message: "TypeError: fetch failed" };
+
+  it("classifies an unreachable endpoint as network", () => {
+    const r = friendlyError(input, "en");
+    expect(r.code).toBe("network");
+    expect(r.message).toMatch(/could not be reached/i);
+    expect(r.hint).toMatch(/LLM_OPENAI_COMPAT_BASE_URL/i);
+  });
+
+  it("also catches ECONNREFUSED", () => {
+    expect(friendlyError({ message: "connect ECONNREFUSED 127.0.0.1:8000" }).code).toBe(
+      "network",
+    );
+  });
+});
+
 describe("friendlyError: server", () => {
   const input = { status: 502, detail: "Bad Gateway" };
 

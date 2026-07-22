@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canonicalModelId,
+  checkRunResidency,
   estimateCostUsd,
   getModel,
   isEuSafe,
@@ -74,5 +75,61 @@ describe("multi-model registry (Kimi + others)", () => {
       },
     });
     expect(problems).toEqual([]);
+  });
+});
+
+describe("checkRunResidency (the run-path guard)", () => {
+  it("exempts the mock provider (nothing leaves the machine)", () => {
+    const d = checkRunResidency("mock", "anything", { allowNonEu: false });
+    expect(d.ok).toBe(true);
+    expect(d.residency).toBe("exempt");
+  });
+
+  it("allows bedrock in an EU region", () => {
+    const d = checkRunResidency("bedrock", "claude-sonnet-5", {
+      region: "eu-central-1",
+      allowNonEu: false,
+    });
+    expect(d.ok).toBe(true);
+    expect(d.residency).toBe("eu");
+  });
+
+  it("blocks bedrock outside an EU region", () => {
+    const d = checkRunResidency("bedrock", "claude-sonnet-5", {
+      region: "us-east-1",
+      allowNonEu: false,
+    });
+    expect(d.ok).toBe(false);
+    expect(d.residency).toBe("non-eu");
+  });
+
+  it("blocks the Anthropic direct (US) route even for an EU-registered model", () => {
+    const d = checkRunResidency("anthropic", "claude-sonnet-5", { allowNonEu: false });
+    expect(d.ok).toBe(false);
+  });
+
+  it("allows an EU openai-compatible model (Mistral)", () => {
+    expect(
+      checkRunResidency("openai-compatible", "mistral-large-3", { allowNonEu: false }).ok,
+    ).toBe(true);
+  });
+
+  it("blocks a non-EU openai-compatible model (Kimi direct)", () => {
+    expect(
+      checkRunResidency("openai-compatible", "kimi-k2-direct", { allowNonEu: false }).ok,
+    ).toBe(false);
+  });
+
+  it("blocks an unknown model on an openai-compatible endpoint (fail-safe)", () => {
+    expect(
+      checkRunResidency("openai-compatible", "some-unlisted-model", { allowNonEu: false })
+        .ok,
+    ).toBe(false);
+  });
+
+  it("proceeds on a non-EU route with the override, but marks it overridden", () => {
+    const d = checkRunResidency("anthropic", "claude-sonnet-5", { allowNonEu: true });
+    expect(d.ok).toBe(true);
+    expect(d.overridden).toBe(true);
   });
 });

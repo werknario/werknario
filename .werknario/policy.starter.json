@@ -1,0 +1,11 @@
+{
+  "_comment": "Start-closed starter for regulated environments (law firms, clinics, public bodies). Copy to .werknario/policy.json. With a non-empty allow list the agent may write ONLY these paths; every other path is refused with a clear reason. Widen 'allow' deliberately as you come to trust more folders. Note: approver identity below records intent; it is defined and tested but not yet enforced by the CLI gate, so treat it as documentation, not a control (see docs/permissions.md).",
+  "agents": {
+    "assistant": {
+      "allow": ["inbox/**", "drafts/**"]
+    }
+  },
+  "approvers": {
+    "**": ["REPLACE_WITH_AN_APPROVER_NAME"]
+  }
+}

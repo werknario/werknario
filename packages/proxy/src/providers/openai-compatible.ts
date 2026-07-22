@@ -19,7 +19,7 @@ export function createOpenAiCompatibleProvider(config: ProxyConfig): Provider {
   const { baseUrl, apiKey } = config.openaiCompatible;
   if (!baseUrl) {
     throw new Error(
-      "LLM_PROVIDER=openai-compatible braucht LLM_OPENAI_COMPAT_BASE_URL (z. B. https://api.mistral.ai/v1).",
+      "LLM_PROVIDER=openai-compatible needs LLM_OPENAI_COMPAT_BASE_URL (e.g. https://api.mistral.ai/v1).",
     );
   }
   const endpoint = `${baseUrl.replace(/\/$/, "")}/chat/completions`;

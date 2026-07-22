@@ -11,7 +11,7 @@
  * verhindert, dass versehentlich ein Modell ohne EU-Datenresidenz eingetragen wird.
  */
 
-import { canonicalModelId, getModel } from "./models.js";
+import { canonicalModelId, getModel, type DataResidency } from "./models.js";
 import type { TokenTotals } from "./tokens.js";
 import { isToolUseBlock, type Message } from "./types.js";
 
@@ -146,6 +146,94 @@ export function validateRoutingPolicy(policy: RoutingPolicy): string[] {
     }
   }
   return problems;
+}
+
+/**
+ * Residency of the actual run route, not just the model id. Residency is a
+ * property of the route: the same Claude model is EU over Bedrock's EU region
+ * but non-EU over Anthropic's direct (US) API, so this keys on provider (and
+ * region for Bedrock), and falls back to the model registry for openai-compatible
+ * endpoints. Unknown routes are treated as non-EU on purpose.
+ */
+export interface RunResidencyDecision {
+  /** May the run proceed (EU-safe, or a non-EU route with an explicit override). */
+  ok: boolean;
+  residency: DataResidency | "exempt";
+  /** True only when proceeding on a non-EU route because the override is set. */
+  overridden: boolean;
+  reason: string;
+}
+
+function routeResidency(
+  provider: string,
+  modelId: string,
+  region: string | undefined,
+): DataResidency {
+  if (provider === "bedrock") {
+    // Bedrock is EU only in an EU region; anything else is not verified EU.
+    return region && /^eu-/i.test(region) ? "eu" : "non-eu";
+  }
+  if (provider === "anthropic") {
+    // Anthropic's direct API is US-based; no EU data residency.
+    return "non-eu";
+  }
+  if (provider === "openai-compatible") {
+    const id = canonicalModelId(modelId);
+    const spec = id ? getModel(id) : undefined;
+    if (spec && (spec.dataResidency === "eu" || spec.dataResidency === "self-host")) {
+      return spec.dataResidency;
+    }
+    return "non-eu";
+  }
+  return "non-eu";
+}
+
+/**
+ * Decides whether a run may go ahead under the EU-residency default. The mock
+ * provider never leaves the machine and is exempt. A non-EU route is blocked
+ * unless the caller passes the explicit override (WERKNARIO_ALLOW_NON_EU), which
+ * is reported back so the CLI can log that it happened.
+ */
+export function checkRunResidency(
+  provider: string,
+  modelId: string,
+  opts: { region?: string | undefined; allowNonEu: boolean },
+): RunResidencyDecision {
+  if (provider === "mock") {
+    return {
+      ok: true,
+      residency: "exempt",
+      overridden: false,
+      reason: "The mock provider runs locally; no data leaves the machine.",
+    };
+  }
+  const residency = routeResidency(provider, modelId, opts.region);
+  if (residency === "eu" || residency === "self-host") {
+    return {
+      ok: true,
+      residency,
+      overridden: false,
+      reason: `${provider}/${modelId}: ${residency} data residency.`,
+    };
+  }
+  if (opts.allowNonEu) {
+    return {
+      ok: true,
+      residency,
+      overridden: true,
+      reason: `${provider}/${modelId} has no verified EU data residency; proceeding because WERKNARIO_ALLOW_NON_EU is set.`,
+    };
+  }
+  return {
+    ok: false,
+    residency,
+    overridden: false,
+    reason:
+      `${provider}/${modelId} has no verified EU data residency. werknario blocks this ` +
+      `by default so personal data stays in the EU. Use an EU or self-hosted model ` +
+      `(see docs/providers-and-models.md), or set WERKNARIO_ALLOW_NON_EU=1 to override ` +
+      `for data with no personal information.`,
+  };
 }
 
 /**

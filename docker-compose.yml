@@ -23,8 +23,11 @@ services:
   # the command: `docker compose run --rm agent "your task"`.
   agent:
     build: .
+    # Real runs read credentials from .env (copy .env.example). Marked optional so
+    # `docker compose run --rm demo` still parses on a fresh clone that has no .env.
     env_file:
-      - .env
+      - path: .env
+        required: false
     volumes:
       - ./work:/work
     stdin_open: true

@@ -11,10 +11,13 @@ import { existsSync, readFileSync } from "node:fs";
 import {
   buildSystemPrompt,
   canWrite,
+  checkRunResidency,
   DEFAULT_ROUTING_POLICY,
   diffLines,
   formatDiff,
+  friendlyError,
   parsePolicy,
+  validateRoutingPolicy,
   type ToolBackend,
 } from "@werknario/shared";
 import { GitlabClient, GitLabRestBackend } from "@werknario/gitlab-client";
@@ -197,9 +200,35 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
+  // Fail fast on data residency before touching any backend or model. The mock
+  // provider is exempt; a non-EU route is blocked unless the override is set.
+  const proxyConfig = loadConfig(process.env);
+  const allowNonEu = /^(1|true|yes)$/i.test(process.env.WERKNARIO_ALLOW_NON_EU ?? "");
+  const residency = checkRunResidency(proxyConfig.provider, proxyConfig.model, {
+    region: proxyConfig.bedrock.region,
+    allowNonEu,
+  });
+  if (!residency.ok) {
+    process.stderr.write(`\nBlocked: ${residency.reason}\n`);
+    process.exit(1);
+  }
+  if (residency.overridden) {
+    process.stdout.write(`\nWARNING: ${residency.reason}\n`);
+  }
+  if (config.routing) {
+    const problems = validateRoutingPolicy(DEFAULT_ROUTING_POLICY);
+    if (problems.length > 0 && !allowNonEu) {
+      process.stderr.write(
+        "\nBlocked: the routing policy includes a non-EU model:\n" +
+          problems.map((p) => `  - ${p}`).join("\n") +
+          "\nSet WERKNARIO_ALLOW_NON_EU=1 to override.\n",
+      );
+      process.exit(1);
+    }
+  }
+
   const { backend, gateway, projectPath, defaultBranch } = await buildBackend(config);
 
-  const proxyConfig = loadConfig(process.env);
   const provider = createProvider(proxyConfig);
   const bedrockEu = proxyConfig.provider === "bedrock";
 
@@ -295,7 +324,16 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  const msg = err instanceof Error ? err.message : String(err);
-  process.stderr.write(`\nError: ${msg}\n`);
+  const raw = err instanceof Error ? err.message : String(err);
+  const fe = friendlyError(
+    { message: raw, name: err instanceof Error ? err.name : undefined },
+    "en",
+  );
+  process.stderr.write(`\n${fe.message}\n${fe.hint}\n`);
+  if (fe.code === "network" && process.env.LLM_OPENAI_COMPAT_BASE_URL) {
+    process.stderr.write(`Endpoint: ${process.env.LLM_OPENAI_COMPAT_BASE_URL}\n`);
+  }
+  process.stderr.write(`(details: ${raw})\n`);
   process.exit(1);
 });
+

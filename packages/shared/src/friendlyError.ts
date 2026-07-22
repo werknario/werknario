@@ -44,6 +44,8 @@ interface ErrorLike {
 
 const CODES = [
   "auth",
+  "missing_key",
+  "network",
   "not_found",
   "branch_exists",
   "conflict",
@@ -70,6 +72,29 @@ function extractStatus(text: string): number | undefined {
 function classify(input: ErrorLike): Code {
   const status = input.status ?? extractStatus(`${input.detail ?? ""} ${input.message ?? ""}`);
   const text = `${input.detail ?? ""} ${input.message ?? ""} ${input.name ?? ""}`.toLowerCase();
+
+  // A provider key that is entirely absent throws locally (no HTTP status),
+  // e.g. the Anthropic SDK's "Could not resolve authentication method". That is
+  // distinct from an invalid key, which the vendor answers with a 401 (auth).
+  if (
+    text.includes("could not resolve authentication") ||
+    text.includes("apikey or authtoken") ||
+    text.includes("expected either apikey")
+  ) {
+    return "missing_key";
+  }
+  // The endpoint could not be reached at all (wrong URL, service down, DNS).
+  if (
+    text.includes("fetch failed") ||
+    text.includes("econnrefused") ||
+    text.includes("enotfound") ||
+    text.includes("getaddrinfo") ||
+    text.includes("socket hang up") ||
+    text.includes("etimedout") ||
+    text.includes("network error")
+  ) {
+    return "network";
+  }
 
   if (status === 429 || text.includes("rate limit")) return "rate_limit";
   if (status === 401 || text.includes("unauthorized") || text.includes("invalid token")) {
@@ -112,6 +137,26 @@ const MESSAGES: Record<Code, Record<Locale, { message: string; hint: string }>> 
     de: {
       message: "Der Zugriff auf den Dokumentenspeicher wurde verweigert.",
       hint: "Den Zugriffs-Token prüfen: abgelaufen oder falsch?",
+    },
+  },
+  missing_key: {
+    en: {
+      message: "No API key is set for the selected model provider.",
+      hint: "Set the provider's key (for Anthropic, CLAUDE_API_TOKEN), or run offline with LLM_PROVIDER=mock.",
+    },
+    de: {
+      message: "Für den gewählten Modell-Anbieter ist kein API-Schlüssel gesetzt.",
+      hint: "Den Schlüssel des Anbieters setzen (für Anthropic CLAUDE_API_TOKEN) oder mit LLM_PROVIDER=mock offline laufen lassen.",
+    },
+  },
+  network: {
+    en: {
+      message: "The model endpoint could not be reached.",
+      hint: "Check the endpoint URL (for openai-compatible, LLM_OPENAI_COMPAT_BASE_URL) and that the service is running.",
+    },
+    de: {
+      message: "Der Modell-Endpunkt war nicht erreichbar.",
+      hint: "Die Endpunkt-URL prüfen (bei openai-compatible LLM_OPENAI_COMPAT_BASE_URL) und ob der Dienst läuft.",
     },
   },
   permission: {
