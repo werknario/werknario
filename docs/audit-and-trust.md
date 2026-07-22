@@ -96,10 +96,12 @@ the motivation to rewrite or shorten the whole thing.
 **External anchor.** The git server already holds an independent, append-only
 record of the events that matter most: the merge/pull requests and the merges
 themselves. A truncated local log that drops a `merge` entry will disagree with
-the server, which still shows the request merged. So the server is a
-cross-check the local file can't rewrite. Publishing the running chain head
-(the last `hash` and entry count) into each merge request would make that
-cross-check automatic; that is the next step here, alongside Sigstore signing.
+the server, which still shows the request merged. So the server is a cross-check
+the local file can't rewrite. The CLI makes that automatic: when it opens a merge
+request, it stamps the running chain head (entry count and last `hash`) into the
+request description — `werknario audit anchor: N entries, head <hash>`. A local
+log later shortened below that point no longer matches the anchor the server
+holds. Signing entries with Sigstore is the next step after this.
 
 **Durability.** Each entry is written to the file the instant it is recorded
 (the `onAppend` hook in `openAuditLog`), not flushed once at the end. A crash
@@ -113,10 +115,20 @@ whole run's trail.
 | On open, before appending anything | `openAuditLog()` reads the existing file, calls `verify()`, and throws, refusing to continue, if the chain doesn't check out. A tampered log is caught the next time the tool runs against it, before it can grow further. |
 | At the end of every CLI run | The CLI verifies again and prints a one-line summary, e.g. `Audit: 7 entries at .werknario/audit.jsonl — chain verified.` (or `chain BROKEN.`) |
 
-There is no separate `werknario audit verify` subcommand today.
-Verification is a side effect of running the CLI against a given audit file,
-not an independent check you can run on its own. To verify a log file outside
-a CLI run, use the library directly:
+There is also a standalone command for a check outside a run — useful for an
+auditor or a CI job:
+
+```bash
+werknario verify .werknario/audit.jsonl                 # reads the genesis from the file
+werknario verify .werknario/audit.jsonl --genesis owner/repo   # strict: also checks the genesis
+```
+
+It prints the result and exits non-zero if the chain is broken. Without
+`--genesis` it reads the genesis seed from the file's own first entry (which
+still catches tampering in the middle of the chain); with `--genesis` it also
+catches a rewritten first entry or a log pointed at the wrong repository.
+
+To verify a log file from your own code, use the library directly:
 
 ```ts
 import { createHash } from "node:crypto";

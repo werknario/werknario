@@ -28,7 +28,14 @@ export type RunEvent =
   | { type: "assistant"; text: string }
   | { type: "tool"; name: string }
   | { type: "usage"; totals: TokenTotals }
-  | { type: "info"; text: string };
+  | { type: "info"; text: string }
+  | {
+      type: "proposal";
+      path: string;
+      isNew: boolean;
+      content: string;
+      previous: string;
+    };
 
 export interface RunTaskDeps {
   backend: ToolBackend;
@@ -67,11 +74,19 @@ function recordingBackend(
   audit: AuditLog,
   agentId: string,
   onMr: (mr: { iid: number; webUrl: string; sourceBranch: string }) => void,
+  out: (event: RunEvent) => void,
 ): ToolBackend {
   return {
     listFiles: (p) => backend.listFiles(p),
     readFile: (p) => backend.readFile(p),
     async proposeEdit(path, content, summary) {
+      // Read the current content first so the human can see a real diff.
+      let previous = "";
+      try {
+        previous = await backend.readFile(path);
+      } catch {
+        previous = "";
+      }
       const r = await backend.proposeEdit(path, content, summary);
       audit.append(agentId, "propose_edit", {
         path,
@@ -79,15 +94,26 @@ function recordingBackend(
         summary,
         bytes: content.length,
       });
+      out({ type: "proposal", path, isNew: r.isNew, content, previous });
       return r;
     },
     async createMergeRequest(args) {
-      const r = await backend.createMergeRequest(args);
+      // External anchor: stamp the current audit chain head (hash + entry count)
+      // into the request description. The git server then holds an immutable
+      // record of where the chain stood, so a later check can catch a local log
+      // that was shortened or rewritten below this point.
+      const anchor =
+        `\n\n---\nwerknario audit anchor: ${audit.entries().length} entries, head ${audit.lastHash}`;
+      const r = await backend.createMergeRequest({
+        ...args,
+        description: `${args.description}${anchor}`,
+      });
       onMr({ iid: r.iid, webUrl: r.webUrl, sourceBranch: r.sourceBranch });
       audit.append(agentId, "create_merge_request", {
         iid: r.iid,
         title: args.title,
         sourceBranch: r.sourceBranch,
+        anchoredAt: audit.entries().length,
       });
       return r;
     },
@@ -110,9 +136,15 @@ export async function runTask(
   audit.append(humanId, "task", { task });
 
   let mr: RunTaskResult["mr"];
-  const backend = recordingBackend(deps.backend, audit, agentId, (m) => {
-    mr = m;
-  });
+  const backend = recordingBackend(
+    deps.backend,
+    audit,
+    agentId,
+    (m) => {
+      mr = m;
+    },
+    deps.out,
+  );
 
   const ledger = new TokenLedger({
     ...(deps.budget ? { budget: deps.budget } : {}),

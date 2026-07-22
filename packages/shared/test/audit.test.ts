@@ -73,6 +73,15 @@ describe("AuditLog — tamper-evident hash chain", () => {
     expect(loaded.verify().ok).toBe(false);
   });
 
+  it("round-trips a detail with an undefined value and still verifies (JSON drops it)", () => {
+    const log = newLog();
+    // e.g. a mergeable_check with no reason: { iid: 1, mergeable: true, reason: undefined }
+    log.append("system", "mergeable_check", { iid: 1, mergeable: true, reason: undefined });
+    log.append("agent:x", "merge", { iid: 1 });
+    const loaded = AuditLog.load(log.toJsonl(), { hash: sha256, now: fixedClock() });
+    expect(loaded.verify()).toEqual({ ok: true });
+  });
+
   it("round-trips through JSONL and keeps verifying", () => {
     const log = newLog();
     log.append("agent:x", "propose_edit", { path: "a.md" });

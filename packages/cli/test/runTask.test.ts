@@ -57,9 +57,10 @@ describe("runTask", () => {
   it("runs the loop, records an auditable chain, and returns the opened MR", async () => {
     const audit = newAudit();
     const out: RunEvent[] = [];
+    const backend = fakeBackend();
     const res = await runTask("Erstelle das Split-Sheet", {
       ...base,
-      backend: fakeBackend(),
+      backend,
       caller: scriptedCaller([
         toolUse("read_file", { path: "a.md" }, "r"),
         toolUse("propose_edit", { path: "b.md", content: "hi", summary: "s" }, "p"),
@@ -86,6 +87,16 @@ describe("runTask", () => {
     const approve = audit.entries().find((e) => e.action === "approve");
     expect(approve?.actor).toBe("human:anna");
     expect(audit.verify()).toEqual({ ok: true });
+
+    // The human is shown the proposed change (path + content) as a diff.
+    const proposal = out.find((e) => e.type === "proposal");
+    expect(proposal).toMatchObject({ type: "proposal", path: "b.md", content: "hi" });
+
+    // The MR description is stamped with the audit chain head (external anchor).
+    const mrArgs = (backend.createMergeRequest as unknown as {
+      mock: { calls: Array<[{ description: string }]> };
+    }).mock.calls[0]?.[0];
+    expect(mrArgs?.description).toMatch(/werknario audit anchor: \d+ entries, head [0-9a-f]{64}/);
   });
 
   it("does not open an MR when the human declines, and records the decline", async () => {

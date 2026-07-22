@@ -30,7 +30,7 @@ function flag(argv: string[], name: string): boolean {
   return argv.includes(`--${name}`);
 }
 
-function opt(argv: string[], name: string): string | undefined {
+export function opt(argv: string[], name: string): string | undefined {
   const i = argv.indexOf(`--${name}`);
   if (i >= 0 && i + 1 < argv.length) return argv[i + 1];
   return undefined;

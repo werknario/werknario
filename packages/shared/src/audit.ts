@@ -79,7 +79,13 @@ function stableStringify(value: unknown): string {
       );
     }
     const obj = value as Record<string, unknown>;
-    const keys = Object.keys(obj).sort();
+    // Omit undefined-valued keys, exactly as JSON.stringify does when the entry
+    // is written to the file. Otherwise an in-memory entry (key present, value
+    // undefined) and the same entry reloaded from disk (key dropped) would hash
+    // differently, and a valid log would fail verification after a round-trip.
+    const keys = Object.keys(obj)
+      .filter((k) => obj[k] !== undefined)
+      .sort();
     const parts = keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`);
     return `{${parts.join(",")}}`;
   }

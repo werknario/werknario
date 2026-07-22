@@ -92,10 +92,10 @@ export LLM_MODEL=mistral-large-3
 node packages/cli/dist/cli.js "Draft a reply to the latest issue in docs/"
 ```
 
-The agent proposes; you approve each write in the terminal. Add `--yes` to run it
-unattended, `--route` to let it pick a cheaper model for simple steps, and
-`--budget 5` to stop it once a run costs five dollars. Full reference in
-[docs/configuration.md](docs/configuration.md).
+The agent proposes and shows you the diff; you approve each write in the terminal.
+Add `--yes` to run it unattended, `--route` to let it pick a cheaper model for
+simple steps, and `--budget 5` to stop it once a run costs five dollars. Full
+reference in [docs/configuration.md](docs/configuration.md).
 
 ## The audit trail
 
@@ -110,8 +110,16 @@ and refuses to append to a log that was tampered with.
 {"seq":3,"actor":"agent:assistant","action":"create_merge_request","detail":{"iid":1,"title":"Split Sheet"},"prevHash":"c0c7…","hash":"ef18…"}
 ```
 
-This is the difference between "an agent changed this document and a human approved
-it" as a claim and as something you can check. More in
+Check a log at any time, without a full run:
+
+```bash
+werknario verify .werknario/audit.jsonl   # exits non-zero if the chain is broken
+```
+
+Each merge request also carries the chain head in its description, so the git
+server anchors the log against being shortened after the fact. This is the
+difference between "an agent changed this document and a human approved it" as a
+claim and as something you can check. More in
 [docs/audit-and-trust.md](docs/audit-and-trust.md).
 
 ## Data residency and models

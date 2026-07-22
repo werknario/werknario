@@ -12,13 +12,16 @@ import {
   buildSystemPrompt,
   canWrite,
   DEFAULT_ROUTING_POLICY,
+  diffLines,
+  formatDiff,
   parsePolicy,
   type ToolBackend,
 } from "@werknario/shared";
 import { GitlabClient, GitLabRestBackend } from "@werknario/gitlab-client";
 import { GitHubClient, GitHubRestBackend } from "@werknario/github-client";
 import { createProvider, loadConfig } from "@werknario/proxy";
-import { loadCliConfig, type CliConfig } from "./config.js";
+import { loadCliConfig, opt, type CliConfig } from "./config.js";
+import { verifyAuditText } from "./verifyCommand.js";
 import { runTask, type ApprovalRequest, type RunEvent } from "./runTask.js";
 import { closeLoop } from "./closeLoop.js";
 import { gitlabGateway, githubGateway } from "./gateways.js";
@@ -30,6 +33,7 @@ const USAGE = `werknario — an agent that proposes document changes as reviewab
 
 Usage:
   werknario "your task in plain language" [options]
+  werknario verify [audit.jsonl] [--genesis <owner/repo>]   check an audit log
 
 Options:
   --yes          approve everything automatically (unattended)
@@ -68,6 +72,15 @@ function printEvent(e: RunEvent): void {
   if (e.type === "assistant") process.stdout.write(`\n${e.text}\n`);
   else if (e.type === "tool") process.stdout.write(`  · ${e.name}\n`);
   else if (e.type === "info") process.stdout.write(`  ${e.text}\n`);
+  else if (e.type === "proposal") {
+    const kind = e.isNew ? "new file" : "change";
+    const diff = formatDiff(diffLines(e.previous, e.content), { context: 3 });
+    const indented = diff
+      .split("\n")
+      .map((l) => `    ${l}`)
+      .join("\n");
+    process.stdout.write(`\n  proposal (${kind}): ${e.path}\n${indented}\n`);
+  }
 }
 
 async function buildBackend(config: CliConfig): Promise<{
@@ -115,8 +128,29 @@ async function buildBackend(config: CliConfig): Promise<{
   throw new Error("No backend configured.");
 }
 
+/** `werknario verify [path] [--genesis <repo>]` — check an audit log and exit. */
+function runVerify(argv: string[]): void {
+  const positional = argv[1] && !argv[1].startsWith("--") ? argv[1] : undefined;
+  const path = positional ?? opt(argv, "audit") ?? ".werknario/audit.jsonl";
+  if (!existsSync(path)) {
+    process.stderr.write(`No audit file at ${path}\n`);
+    process.exit(1);
+  }
+  const outcome = verifyAuditText(readFileSync(path, "utf8"), opt(argv, "genesis"));
+  const head = outcome.ok
+    ? `verified (${outcome.entries} entries, genesis ${outcome.genesisUsed})`
+    : `BROKEN at entry ${outcome.brokenAt ?? "?"}: ${outcome.reason ?? "unknown"}`;
+  process.stdout.write(`Audit ${path} — chain ${head}.\n`);
+  process.exit(outcome.ok ? 0 : 1);
+}
+
 async function main(): Promise<void> {
-  const { task, config } = loadCliConfig(process.env, process.argv.slice(2));
+  const rawArgv = process.argv.slice(2);
+  if (rawArgv[0] === "verify") {
+    runVerify(rawArgv);
+    return;
+  }
+  const { task, config } = loadCliConfig(process.env, rawArgv);
   if (!task) {
     process.stdout.write(USAGE);
     process.exit(0);
