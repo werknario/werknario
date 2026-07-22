@@ -93,9 +93,11 @@ node packages/cli/dist/cli.js "Draft a reply to the latest issue in docs/"
 ```
 
 The agent proposes and shows you the diff; you approve each write in the terminal.
-Add `--yes` to run it unattended, `--route` to let it pick a cheaper model for
-simple steps, and `--budget 5` to stop it once a run costs five dollars. Full
-reference in [docs/configuration.md](docs/configuration.md).
+Add `--yes` to run it unattended, `--dry-run` to preview without opening anything,
+`--route` to let it pick a cheaper model for simple steps, and `--budget 5` to
+stop it once a run costs five dollars. More task examples in
+[docs/recipes.md](docs/recipes.md); full reference in
+[docs/configuration.md](docs/configuration.md).
 
 ## The audit trail
 

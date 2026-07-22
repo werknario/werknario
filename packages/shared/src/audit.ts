@@ -97,8 +97,12 @@ function stableStringify(value: unknown): string {
  * through the order-stable serializer, so every string is JSON-escaped and there
  * is no separator a crafted actor/action/detail could imitate (a plain join(" ")
  * would be ambiguous for values containing spaces).
+ *
+ * Exported so a second surface (the browser extension, which must hash with the
+ * async Web Crypto API) can produce byte-identical canonical strings, and thus
+ * chains the CLI and `werknario verify` accept.
  */
-function canonical(e: Omit<AuditEntry, "hash">): string {
+export function canonicalizeEntry(e: Omit<AuditEntry, "hash">): string {
   return stableStringify([e.seq, e.ts, e.actor, e.action, e.detail, e.prevHash]);
 }
 
@@ -137,7 +141,7 @@ export class AuditLog {
       detail,
       prevHash: this.lastHash,
     };
-    const entry: AuditEntry = { ...base, hash: this.hashFn(canonical(base)) };
+    const entry: AuditEntry = { ...base, hash: this.hashFn(canonicalizeEntry(base)) };
     this._entries.push(entry);
     this.onAppendCb?.(entry);
     return entry;
@@ -164,7 +168,7 @@ export class AuditLog {
         return { ok: false, brokenAt: i, reason: "prevHash does not match previous entry" };
       }
       const recomputed = this.hashFn(
-        canonical({
+        canonicalizeEntry({
           seq: e.seq,
           ts: e.ts,
           actor: e.actor,

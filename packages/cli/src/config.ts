@@ -19,6 +19,10 @@ export interface CliConfig {
   auditPath: string;
   policyPath: string;
   maxTurns?: number;
+  /** Show what the agent would do, but decline every team-visible write. */
+  dryRun: boolean;
+  /** Shell command run as an external check before a merge; non-zero blocks it. */
+  verifyCmd?: string;
 }
 
 export interface ParsedInvocation {
@@ -43,7 +47,11 @@ function positional(argv: string[]): string {
     const a = argv[i] ?? "";
     if (a.startsWith("--")) {
       // skip the value of value-taking flags
-      if (["budget", "audit", "policy", "agent", "human", "max-turns"].includes(a.slice(2))) {
+      if (
+        ["budget", "audit", "policy", "agent", "human", "max-turns", "verify-cmd"].includes(
+          a.slice(2),
+        )
+      ) {
         i += 1;
       }
       continue;
@@ -85,7 +93,11 @@ export function loadCliConfig(
     locale: flag(argv, "de") || env.WERKNARIO_LOCALE === "de" ? "de" : "en",
     auditPath: opt(argv, "audit") || env.WERKNARIO_AUDIT || ".werknario/audit.jsonl",
     policyPath: opt(argv, "policy") || env.WERKNARIO_POLICY || ".werknario/policy.json",
+    dryRun: flag(argv, "dry-run") || env.WERKNARIO_DRY_RUN === "1",
   };
+
+  const verifyCmd = opt(argv, "verify-cmd") || env.WERKNARIO_VERIFY_CMD;
+  if (verifyCmd) config.verifyCmd = verifyCmd;
 
   const budget = opt(argv, "budget") || env.WERKNARIO_BUDGET_USD;
   if (budget) config.budgetUsd = Number(budget);

@@ -19,7 +19,9 @@ werknario "your task in plain language" [options]
 | Flag | Takes a value | Env equivalent | Default | What it does |
 |---|---|---|---|---|
 | `--yes` | no | `WERKNARIO_AUTO_APPROVE=1` | off | Approve every write automatically (unattended run) |
+| `--dry-run` | no | `WERKNARIO_DRY_RUN=1` | off | Propose and show the diff, but decline every team-visible write |
 | `--route` | no | `WERKNARIO_ROUTE=1` | off | Let the deterministic router pick a cheaper model for simple turns |
+| `--verify-cmd <cmd>` | yes | `WERKNARIO_VERIFY_CMD` | none | Shell command run before a merge; a non-zero exit blocks it |
 | `--budget <usd>` | yes | `WERKNARIO_BUDGET_USD` | none | Stop the run once its cost reaches this many USD |
 | `--de` | no | `WERKNARIO_LOCALE=de` | `en` | German for the agent's prompt and the CLI's messages (see note below) |
 | `--agent <id>` | yes | `WERKNARIO_AGENT_ID` | `agent:assistant` | Audit-log actor for the agent (an `agent:` prefix is added if omitted) |
@@ -29,6 +31,13 @@ werknario "your task in plain language" [options]
 | `--max-turns <n>` | yes | none | 12 | Cap the number of model turns for this run |
 
 Everything else on the command line is joined into the task string.
+
+### Subcommands
+
+| Command | What it does |
+|---|---|
+| `werknario verify [audit.jsonl] [--genesis owner/repo]` | Check an audit log and exit non-zero if broken. See [audit-and-trust.md](./audit-and-trust.md). |
+| `werknario eval` | Run the built-in scenarios against the configured model and print a pass/fail table. Offline (mock) it is deterministic; with a real model it is a smoke test of your setup. |
 
 Locale note: the CLI defaults to English and the Web IDE extension uses German.
 `--de` / `WERKNARIO_LOCALE=de` switches the CLI to German for both the agent's

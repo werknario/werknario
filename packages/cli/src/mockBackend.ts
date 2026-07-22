@@ -17,8 +17,10 @@ const SEED: Record<string, string> = {
     "Anteile am Split noch offen — bitte ableiten.\n",
 };
 
-export function mockBackend(): { backend: ToolBackend; gateway: MergeGateway } {
-  const files = new Map<string, string>(Object.entries(SEED));
+export function mockBackend(
+  seed: Record<string, string> = SEED,
+): { backend: ToolBackend; gateway: MergeGateway } {
+  const files = new Map<string, string>(Object.entries(seed));
   const staged = new Map<string, string>();
   let nextIid = 1;
 

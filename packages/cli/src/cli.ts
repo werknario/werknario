@@ -22,6 +22,8 @@ import { GitHubClient, GitHubRestBackend } from "@werknario/github-client";
 import { createProvider, loadConfig } from "@werknario/proxy";
 import { loadCliConfig, opt, type CliConfig } from "./config.js";
 import { verifyAuditText } from "./verifyCommand.js";
+import { verifyWithCommand } from "./shellVerify.js";
+import { runScenario, SCENARIOS } from "./eval.js";
 import { runTask, type ApprovalRequest, type RunEvent } from "./runTask.js";
 import { closeLoop } from "./closeLoop.js";
 import { gitlabGateway, githubGateway } from "./gateways.js";
@@ -37,8 +39,10 @@ Usage:
 
 Options:
   --yes          approve everything automatically (unattended)
+  --dry-run      show what the agent would do, but open nothing
   --route        let the agent pick a cheaper model for simple steps
   --budget <usd> stop when the run's cost reaches this many USD
+  --verify-cmd <cmd>  run a shell command before merging; non-zero blocks it
   --de           German prompts and messages
   --audit <path> audit log file (default .werknario/audit.jsonl)
   --policy <path> permission file (default .werknario/policy.json)
@@ -144,10 +148,41 @@ function runVerify(argv: string[]): void {
   process.exit(outcome.ok ? 0 : 1);
 }
 
+/** `werknario eval` — run the built-in scenarios against the configured model. */
+async function runEval(): Promise<void> {
+  const provider = createProvider(loadConfig(process.env));
+  const caller = (req: Parameters<typeof provider.createMessage>[0]) =>
+    provider.createMessage(req);
+  process.stdout.write(`\nwerknario eval — ${SCENARIOS.length} scenario(s)\n`);
+  let allPassed = true;
+  for (const scenario of SCENARIOS) {
+    const r = await runScenario(scenario, caller);
+    if (!r.passed) allPassed = false;
+    process.stdout.write(
+      `\n${r.passed ? "PASS" : "FAIL"}  ${r.name}` +
+        (r.costUsd > 0 ? `  (~$${r.costUsd.toFixed(4)})` : "") +
+        "\n",
+    );
+    for (const c of r.checks) {
+      process.stdout.write(
+        `  ${c.ok ? "ok  " : "FAIL"} ${c.name}${c.detail ? ` — ${c.detail}` : ""}\n`,
+      );
+    }
+  }
+  process.stdout.write(
+    `\n${allPassed ? "All scenarios passed." : "Some scenarios failed."}\n`,
+  );
+  process.exit(allPassed ? 0 : 1);
+}
+
 async function main(): Promise<void> {
   const rawArgv = process.argv.slice(2);
   if (rawArgv[0] === "verify") {
     runVerify(rawArgv);
+    return;
+  }
+  if (rawArgv[0] === "eval") {
+    await runEval();
     return;
   }
   const { task, config } = loadCliConfig(process.env, rawArgv);
@@ -184,6 +219,10 @@ async function main(): Promise<void> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const ask = (q: string) => rl.question(q);
   const approve = async (r: ApprovalRequest): Promise<boolean> => {
+    if (config.dryRun) {
+      process.stdout.write(`\n[dry run] would ${r.tool} — declining.\n`);
+      return false;
+    }
     if (config.autoApprove) return true;
     process.stdout.write(`\n${describeApproval(r)}\n`);
     return isYes(await ask("Approve? [y/N] "));
@@ -222,6 +261,9 @@ async function main(): Promise<void> {
         gateway,
         approveMerge: async (iid) =>
           config.autoApprove ? true : isYes(await ask(`Merge !${iid} now? [y/N] `)),
+        ...(config.verifyCmd
+          ? { verify: () => verifyWithCommand(config.verifyCmd as string) }
+          : {}),
         out: (l) => process.stdout.write(`  ${l}\n`),
         audit,
         humanId: config.humanId,
