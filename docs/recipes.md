@@ -36,7 +36,7 @@ proposing a new split-sheet file, then:
 ```
 Merge request opened: mock://merge-request/1
 Merged !1.
-Audit: 8 entries at .werknario/audit.jsonl — chain verified
+Audit: 9 entries at .werknario/audit.jsonl — chain verified
 ```
 
 The bundled demo substrate is a German music-label example, so the agent narrates

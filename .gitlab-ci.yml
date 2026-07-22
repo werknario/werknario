@@ -32,10 +32,10 @@ verify:
   stage: verify
   script:
     - npm ci --cache .npm --prefer-offline
-    - npm run build          # shared(emit) -> gitlab-client(check) -> proxy(emit) -> extension(esbuild bundle)
+    - npm run build          # shared(emit) -> gitlab-client(check) -> github-client(check) -> proxy(emit) -> cli(esbuild bundle) -> extension(esbuild bundle); registry excluded (built next line)
     - npm run -w @werknario/registry build
     - npm run typecheck       # strict typecheck across all workspaces
-    - npm run test            # unit tests: shared, gitlab-client, proxy, extension, registry
+    - npm run test            # unit tests: shared, gitlab-client, github-client, proxy, cli, extension, registry
     - cd e2e && npx vitest run  # flagship pipeline (real-LLM + live-GitLab tests skip without env)
   artifacts:
     paths:

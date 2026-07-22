@@ -12,6 +12,11 @@ That is the accurate state today, not an aspiration to keep it that way. The
 process below exists so a second maintainer can be added without renegotiating
 everything.
 
+Because the project is Apache-2.0 with a DCO and no contributor license
+agreement, anyone can fork it and carry it forward if the sole maintainer steps
+away; the license already grants that right, so continuity does not depend on
+any single person.
+
 ## How decisions are made
 
 Most decisions happen in the open, on the merge request or issue that raises

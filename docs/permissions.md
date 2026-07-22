@@ -142,6 +142,15 @@ ready for a future or external check to read, not as an enforced
 access-control gate. Do not describe this as four-eyes approval; the
 approver role is designed and tested, not enforced.
 
+Identity-bound approver enforcement is on the roadmap, not built. Real
+four-eyes means the gate checks the acting person against the `approvers`
+list for the path, and that the person's identity is authenticated (tied to
+SSO or a verified Git identity) rather than a label they typed. Until that
+lands, the compensating control is your own organisation's process: have a
+second named person review the change before the approver says yes. The tool
+does not verify that this happened, so the discipline sits with you, not with
+the code.
+
 ### Who actually approves, and how
 
 Since the `approvers` list does not gate anything, approval today is just

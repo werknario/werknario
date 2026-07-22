@@ -60,7 +60,7 @@ a new split-sheet file, then:
 ```
 Merge request opened: mock://merge-request/1
   Merged !1.
-Audit: 8 entries at .werknario/audit.jsonl — chain verified.
+Audit: 9 entries at .werknario/audit.jsonl — chain verified.
 ```
 
 The bundled demo substrate is a German-language music-label example, so the agent
@@ -78,6 +78,14 @@ npm link -w @werknario/cli   # from the repo root; then `werknario <args>` works
 
 Everything below uses the `node packages/cli/dist/cli.js` form so the commands
 work whether or not you linked.
+
+### Offline / air-gapped build
+
+A source build can skip the roughly 300 MB Playwright/Chromium download: set
+`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` before `npm install`. The CLI and proxy
+never need a browser, so nothing at runtime pulls it back in. The Docker build
+already sets this variable, so the image build is offline-clean without the extra
+step.
 
 ## Install with Docker
 
@@ -104,6 +112,11 @@ docker compose run --rm agent "Draft the split sheet from the session note"
 
 Both services mount `./work` into the container and default the audit log to
 `/work/audit.jsonl`, so the log survives after the container exits.
+
+After you change the code, rebuild before the next run:
+`docker compose run --build --rm agent "..."` (or rebuild the image with
+`docker build -t werknario .`). Without `--build`, Compose reuses the existing
+image and runs the old code.
 
 If you would rather not use Compose, build and run the image directly:
 
@@ -319,6 +332,8 @@ node packages/cli/dist/cli.js "Summarise new intake notes into the client files"
   --yes --route --budget 5 --verify-cmd "npm test"
 ```
 
+On Windows, put these in a `.env` file (copy `.env.example`) instead of `export`.
+
 Useful flags for unattended runs:
 
 - `--route` picks a cheaper model for simple turns.
@@ -354,6 +369,10 @@ suite and CI use it.
 LLM_PROVIDER=mock WERKNARIO_BACKEND=mock \
   node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
 ```
+
+That inline form is bash syntax; `npm run demo` runs the same thing cross-platform.
+On Windows, put the two variables in a `.env` file (copy `.env.example`) instead of
+setting them inline; the CLI reads `.env` on every platform.
 
 You can also mix: keep `WERKNARIO_BACKEND=mock` while pointing `LLM_PROVIDER` at a
 real model to exercise a model against a throwaway repository, or keep

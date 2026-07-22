@@ -44,7 +44,7 @@ The tail of the run looks like this:
 Merge request opened: mock://merge-request/1
   Merged !1.
 
-Audit: 8 entries at .werknario/audit.jsonl — chain verified.
+Audit: 9 entries at .werknario/audit.jsonl — chain verified.
 ```
 
 ## Why the agent speaks German

@@ -73,7 +73,7 @@ Entwurf vorgelegt und Merge Request geöffnet. Bitte die offenen Anteile prüfen
 Merge request opened: mock://merge-request/1
   Merged !1.
 
-Audit: 8 entries at .werknario/audit.jsonl — chain verified.
+Audit: 9 entries at .werknario/audit.jsonl — chain verified.
 ```
 
 The bundled demo substrate is a German music-label example, so the agent

@@ -2,7 +2,7 @@
 
 werknario ist ein Agent, der Büroarbeit so erledigt wie eine sorgfältige Kollegin: Er liest die vorhandenen Dokumente, schreibt einen Änderungsvorschlag und legt ihn einem Menschen zur Freigabe vor, bevor etwas endgültig wird. Ein Agent ist hier eine Software, die eine Aufgabe selbständig zu Ende führt und nicht nur antwortet. Jede Änderung ist ein lesbarer Diff, der von einem benannten Agenten vorgeschlagen und von einem benannten Menschen genehmigt wird, und die Dateien liegen in Git (GitLab oder GitHub).
 
-Diese Seite richtet sich an Kanzleien, Kliniken und Verwaltungen, die vor einem Einsatz wissen wollen, wo die Daten liegen und was der Nachweis wirklich wert ist. Sie ist eine Einordnung, keine Rechtsberatung.
+Diese Seite richtet sich an Kanzleien, Kliniken und Verwaltungen, die vor einem Einsatz wissen wollen, wo die Daten liegen und was der Nachweis wirklich wert ist. Sie ist eine Einordnung, keine Rechtsberatung. Die weiterführende, verlinkte Dokumentation liegt derzeit auf Englisch vor.
 
 ## Berufsgeheimnis und Datenschutz
 
@@ -24,9 +24,9 @@ So weit reicht der Nachweis, und keinen Schritt weiter. Das Audit-Log ist eine H
 
 ## Menschliche Aufsicht
 
-Der Agent entscheidet nichts allein. Jede Änderung und jeder Merge hält an und wartet auf eine namentliche Freigabe, bevor etwas wirksam wird. Die Freigabe erfolgt entweder im Terminal oder über die Oberfläche im Web-IDE, in der eine nicht-technische Person den Diff sieht und zustimmt.
+Der Agent entscheidet nichts allein. Jede Änderung und jeder Merge hält an und wartet auf eine namentliche Freigabe, bevor etwas wirksam wird. Die Freigabe erfolgt entweder im Terminal oder über die Oberfläche im Web-IDE, in der eine nicht-technische Person den Diff sieht und zustimmt. Die Extension für diese Oberfläche ist gebaut und getestet. Der gehostete Browser-Zugang darauf, also der Weg über eine echte GitLab-Web-IDE, ist entworfen, aber noch nicht bereitgestellt; er braucht noch DNS und einen Caddy-Server. Eine nicht-technische freigebende Person nutzt die Oberfläche heute also lokal, nicht über eine gehostete Adresse.
 
-Ein ehrlicher Punkt dazu: Wer freigeben darf, lässt sich in der Policy-Datei als Genehmiger-Rolle hinterlegen, und diese Auflösung ist definiert und getestet. Erzwungen wird sie heute noch nicht. Der Name, der neben einer Freigabe im Log steht, ist selbst angegeben und belegt die Absicht, nicht die Identität. Es findet noch keine Prüfung statt, ob die freigebende Person in der Genehmiger-Liste für den betroffenen Pfad steht. Nennen Sie das darum nicht Vier-Augen-Prinzip. Eine erzwungene Genehmiger-Prüfung braucht eine authentifizierte Identität und steht noch aus.
+Ein ehrlicher Punkt dazu: Wer freigeben darf, lässt sich in der Policy-Datei als Genehmiger-Rolle hinterlegen, und diese Auflösung ist definiert und getestet. Erzwungen wird sie heute noch nicht. Heute prüft weder die CLI noch die Extension die Identität der genehmigenden Person gegen die Genehmiger-Liste. Der Name, der neben einer Freigabe im Log steht, ist selbst angegeben und belegt die Absicht, nicht die Identität. Nennen Sie das darum nicht Vier-Augen-Prinzip. Eine identitätsgebundene Vier-Augen-Durchsetzung, gebunden an eine authentifizierte Identität über SSO oder ein signiertes Git-Konto, und eine Sigstore-Signatur für gerichtsfeste Unabstreitbarkeit sind geplant, nicht gebaut. Bis dahin trägt die organisatorische Kompensationsmaßnahme: Ein zweiter benannter Mensch prüft den Diff, bevor die freigebende Person zustimmt.
 
 Was heute erzwungen wird, ist die Pfad-Berechtigung. Die Policy-Datei steuert, welche Pfade ein Agent überhaupt schreiben darf, und blockiert alles außerhalb.
 

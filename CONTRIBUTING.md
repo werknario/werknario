@@ -17,8 +17,10 @@ you set all of them: `id` (the canonical catalog key), `label` (a
 human-readable name), `provider` (`anthropic`, `bedrock`,
 `openai-compatible`, or `mock`), `match` (the patterns that map a raw
 provider model id back to this entry), `contextWindow`, `supportsTools`,
-`dataResidency` (`eu`, `self-host`, or `non-eu`), and `price` (per million
-tokens, or `null` if you cannot verify it). The quickest path is to copy an
+`dataResidency` (`eu`, `self-host`, or `non-eu`), and `price` (a `ModelPrice`
+object with `inputPerMTok`, `outputPerMTok`, and `verifiedOn` — optionally
+`cacheWritePerMTok`, `cacheReadPerMTok`, and `note` — or `null` if you cannot
+verify it; a bare `price: 3` does not compile). The quickest path is to copy an
 existing entry and change all eight. Nothing else in the agent needs to
 change: the token ledger and the router both read this catalog. The model registry is
 `packages/shared/src/models.ts`. It is not the `registry/` package, which is
@@ -145,13 +147,12 @@ npm run build
 ```
 
 The root script builds, in order: `@werknario/shared`,
-`@werknario/gitlab-client`, `@werknario/proxy`, `@werknario/cli`, then the
-extension package `werknario-webide-agent`. `@werknario/github-client` and
-`@werknario/registry` are not part of that aggregate; build them directly if
-you need them:
+`@werknario/gitlab-client`, `@werknario/github-client`, `@werknario/proxy`,
+`@werknario/cli`, then the extension package `werknario-webide-agent`.
+`@werknario/registry` (the gallery-proxy service) is the only workspace not in
+that aggregate; build it directly if you need it:
 
 ```bash
-npm run build -w @werknario/github-client
 npm run build -w @werknario/registry
 ```
 
@@ -176,6 +177,9 @@ npm install
 npm run build
 npm run demo
 ```
+
+Heads-up: the run narrates in German because the bundled demo substrate is a
+German-language music label. That is the content, not a language flag.
 
 During iteration you can skip the build and run the source directly with
 `npm run dev -w @werknario/cli -- "..."` (it runs `tsx src/cli.ts`). Verify a

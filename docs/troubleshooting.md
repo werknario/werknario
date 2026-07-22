@@ -87,7 +87,7 @@ file every command in the docs runs.
 **Symptom.** Instead of
 
 ```
-Audit .werknario/audit.jsonl — chain verified (8 entries, genesis mock/demo).
+Audit .werknario/audit.jsonl — chain verified (9 entries, genesis mock/demo).
 ```
 
 you get
@@ -137,7 +137,7 @@ needs are missing or wrong. Each provider reads its own environment, and a
 missing value surfaces only when the first call is made. Known shapes:
 
 - `openai-compatible` with no base URL throws
-  `LLM_PROVIDER=openai-compatible braucht LLM_OPENAI_COMPAT_BASE_URL (z. B.
+  `LLM_PROVIDER=openai-compatible needs LLM_OPENAI_COMPAT_BASE_URL (e.g.
   https://api.mistral.ai/v1).`
 - `bedrock` without the optional SDK throws `LLM_PROVIDER=bedrock requires the
   optional "@anthropic-ai/bedrock-sdk" package, which is not installed.`
@@ -147,10 +147,10 @@ missing value surfaces only when the first call is made. Known shapes:
   run offline with `LLM_PROVIDER=mock`. There is no status code here; the SDK
   never reached the vendor.
 - A key that is present but wrong is different: the vendor answers with a `401`
-  (or `403`), which werknario surfaces for team-visible actions as "Access to
-  the document store was denied" with the hint to check the token. Absent key
-  and invalid key are separate cases, so read the message rather than assuming a
-  missing key produces a 401.
+  (or `403`), which werknario surfaces as "Access was denied: the credentials
+  were rejected" with the hint to check the token or key for the service you
+  configured. Absent key and invalid key are separate cases, so read the message
+  rather than assuming a missing key produces a 401.
 
 **Fix.** Set the environment for the provider you chose. The variables each one
 reads:

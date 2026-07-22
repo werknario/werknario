@@ -227,6 +227,8 @@ Local offline demo, no keys, no server (`mock` provider and `mock` backend):
 LLM_PROVIDER=mock WERKNARIO_BACKEND=mock node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
 ```
 
+On Windows, put these in a `.env` file (copy `.env.example`) instead of setting them inline; the CLI reads `.env` on every platform.
+
 The bundled demo substrate is a German-language music-label example, so the agent
 narrates in German and follows the substrate's language. Point it at your own
 repository for English. See [DEMO.md](DEMO.md).
@@ -245,6 +247,8 @@ be used only for data with no personal information:
 WERKNARIO_BACKEND=gitlab GITLAB_BASE_URL=https://gitlab.example.com GITLAB_PROJECT_ID=42 GITLAB_TOKEN=glpat-xxx LLM_PROVIDER=anthropic CLAUDE_API_TOKEN=sk-ant-xxx WERKNARIO_ALLOW_NON_EU=1 node packages/cli/dist/cli.js "Summarize the open issues under docs/"
 ```
 
+On Windows, put these in a `.env` file (copy `.env.example`) instead of setting them inline; the CLI reads `.env` on every platform.
+
 GitLab backend with Bedrock (EU inference profile), routing on and a two-dollar
 budget:
 
@@ -252,11 +256,15 @@ budget:
 WERKNARIO_BACKEND=gitlab GITLAB_PROJECT_ID=42 GITLAB_TOKEN=glpat-xxx LLM_PROVIDER=bedrock LLM_MODEL=eu.anthropic.claude-sonnet-5-... AWS_REGION=eu-central-1 AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... node packages/cli/dist/cli.js "..." --route --budget 2
 ```
 
+On Windows, put these in a `.env` file (copy `.env.example`) instead of setting them inline; the CLI reads `.env` on every platform.
+
 GitHub backend with an OpenAI-compatible endpoint (Mistral):
 
 ```bash
 WERKNARIO_BACKEND=github GITHUB_REPO=my-org/my-docs GITHUB_TOKEN=ghp_xxx LLM_PROVIDER=openai-compatible LLM_OPENAI_COMPAT_BASE_URL=https://api.mistral.ai/v1 LLM_OPENAI_COMPAT_API_KEY=... LLM_MODEL=mistral-large-3 node packages/cli/dist/cli.js "..."
 ```
+
+On Windows, put these in a `.env` file (copy `.env.example`) instead of setting them inline; the CLI reads `.env` on every platform.
 
 A ready-to-copy template of every variable is in `.env.example`. Related reading:
 [backends.md](backends.md), [providers-and-models.md](providers-and-models.md),

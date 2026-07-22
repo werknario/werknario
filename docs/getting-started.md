@@ -98,11 +98,11 @@ Entwurf vorgelegt und Merge Request geöffnet. Bitte die offenen Anteile prüfen
 Merge request opened: mock://merge-request/1
   Merged !1.
 
-Audit: 8 entries at .werknario/audit.jsonl — chain verified (head <per-run hash>).
+Audit: 9 entries at .werknario/audit.jsonl — chain verified (head <per-run hash>).
 ```
 
 The agent read a note, proposed a new file (shown as a diff), opened a merge
-request, merged it, and wrote an eight-entry audit log that verified. Note that
+request, merged it, and wrote an nine-entry audit log that verified. Note that
 the open share is left as `ANTEIL OFFEN` rather than invented: the agent may only
 write what it can ground in what it read.
 
@@ -135,9 +135,12 @@ it, and `hash`, this line's own hash computed over its fields plus that
 per run):
 
 ```json
-{"seq":2,"actor":"human:you","action":"approve","detail":{"tool":"create_merge_request"},"prevHash":"1bb3…","hash":"455b…"}
-{"seq":3,"actor":"agent:assistant","action":"create_merge_request","detail":{"iid":1,"title":"Split Sheet Landgang (Entwurf)"},"prevHash":"455b…","hash":"475d…"}
+{"seq":3,"actor":"human:you","action":"approve","detail":{"tool":"create_merge_request"},"prevHash":"1bb3…","hash":"455b…"}
+{"seq":4,"actor":"agent:assistant","action":"create_merge_request","detail":{"iid":1,"title":"Split Sheet Landgang (Entwurf)"},"prevHash":"455b…","hash":"475d…"}
 ```
+
+The chain opens at `seq:0`, a `system`/`residency` entry recording the model
+route werknario checked before the run (see [providers-and-models.md](providers-and-models.md#data-residency-and-gdpr)); `seq:1` is the task, then the read, the proposal, this approval, and the merge.
 
 Check the whole chain without doing a run:
 
@@ -146,7 +149,7 @@ node packages/cli/dist/cli.js verify .werknario/audit.jsonl
 ```
 
 ```
-Audit .werknario/audit.jsonl — chain verified (8 entries, genesis mock/demo).
+Audit .werknario/audit.jsonl — chain verified (9 entries, genesis mock/demo).
 ```
 
 `verify` exits 0 on a good chain and non-zero if the chain breaks, so it drops
