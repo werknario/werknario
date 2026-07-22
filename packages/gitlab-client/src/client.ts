@@ -66,7 +66,12 @@ export interface GitlabMergeRequest {
   source_branch: string;
   target_branch: string;
   title: string;
+  /** e.g. "mergeable", "conflict", "ci_still_running" — used for conflict detection. */
   detailed_merge_status?: string;
+  /** Head commit of the MR branch. */
+  sha?: string;
+  /** Set once the MR is merged. */
+  merge_commit_sha?: string;
 }
 
 export interface GitlabBranch {
@@ -277,6 +282,31 @@ export class GitlabClient implements GitlabApi {
     return this.req<GitlabMergeRequest>(
       "GET",
       `${this.projectBase}/merge_requests/${iid}`,
+    );
+  }
+
+  /**
+   * Merge an open merge request. Not on the GitlabApi interface (and not a tool
+   * the agent can call): merging is a human-approved, CLI-driven step, so only
+   * the concrete client exposes it. Returns the merged MR with merge_commit_sha.
+   */
+  mergeMergeRequest(iid: number): Promise<GitlabMergeRequest> {
+    return this.req<GitlabMergeRequest>(
+      "PUT",
+      `${this.projectBase}/merge_requests/${iid}/merge`,
+    );
+  }
+
+  /**
+   * Revert a commit onto `branch` (rollback). Creates a revert commit; the CLI
+   * then opens a merge request for it so a human approves the undo like any
+   * other change.
+   */
+  revertCommit(sha: string, branch: string): Promise<GitlabCommit> {
+    return this.req<GitlabCommit>(
+      "POST",
+      `${this.projectBase}/repository/commits/${encodeURIComponent(sha)}/revert`,
+      { body: { branch } },
     );
   }
 

@@ -77,6 +77,12 @@ export interface ToolExecutorOptions {
   onApprovalRequest?: (toolUse: ToolUseBlock) => Promise<boolean>;
   /** Cap read_file / list_files output length so a huge file cannot blow the context. */
   maxReadChars?: number;
+  /**
+   * Optional permission check on a path the agent wants to edit (from the policy
+   * model). Return { allowed: false, reason } to block a proposed edit before it
+   * is staged. If omitted, all paths are allowed (default).
+   */
+  writeGuard?: (path: string) => { allowed: boolean; reason?: string };
 }
 
 const DEFAULT_MAX_READ_CHARS = 60_000;
@@ -206,6 +212,15 @@ export function createToolExecutor(
       case "propose_edit": {
         const path = requireString(input, "path");
         assertSafeRepoPath(path);
+        if (options.writeGuard) {
+          const decision = options.writeGuard(path);
+          if (!decision.allowed) {
+            return {
+              content: `Die Änderung an "${path}" ist nicht erlaubt: ${decision.reason ?? "durch Richtlinie gesperrt"}. Wähle einen anderen Pfad oder frag den Menschen.`,
+              isError: true,
+            };
+          }
+        }
         const content = requireString(input, "content");
         const summary = asString(input["summary"]) || "(ohne Beschreibung)";
         const res = await backend.proposeEdit(path, content, summary);

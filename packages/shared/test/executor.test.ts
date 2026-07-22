@@ -240,6 +240,28 @@ describe("createToolExecutor", () => {
     expect(r.content).toMatch(/nur 3 Zeilen/i);
   });
 
+  it("blocks a proposed edit the write guard denies, before staging it", async () => {
+    const backend = fakeBackend();
+    const exec = createToolExecutor(backend, {
+      writeGuard: (path) =>
+        path.startsWith("vertraege/")
+          ? { allowed: false, reason: "gesperrt für diesen Agenten" }
+          : { allowed: true },
+    });
+    const r = await exec(
+      use("propose_edit", { path: "vertraege/x.md", content: "c", summary: "s" }),
+    );
+    expect(r.isError).toBe(true);
+    expect(backend.proposeEdit).not.toHaveBeenCalled();
+    expect(r.content).toMatch(/nicht erlaubt/i);
+    // an allowed path still stages normally
+    const ok = await exec(
+      use("propose_edit", { path: "personal/x.md", content: "c", summary: "s" }),
+    );
+    expect(ok.isError).toBeUndefined();
+    expect(backend.proposeEdit).toHaveBeenCalledOnce();
+  });
+
   it("blocks path traversal on read_file / list_files / propose_edit before the backend runs", async () => {
     const backend = fakeBackend();
     const exec = createToolExecutor(backend);
