@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "paths": {
+      "@werknario/shared": ["../shared/src/index.ts"],
+      "@werknario/gitlab-client": ["../gitlab-client/src/index.ts"],
+      "@werknario/github-client": ["../github-client/src/index.ts"],
+      "@werknario/proxy": ["../proxy/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules", "test"]
+}
