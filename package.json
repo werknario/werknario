@@ -11,6 +11,7 @@
     "build": "npm run build -w @werknario/shared && npm run build -w @werknario/gitlab-client && npm run build -w @werknario/proxy && npm run build -w @werknario/cli && npm run build -w werknario-webide-agent",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:prompts": "npm run build -w @werknario/shared && npm run build -w @werknario/proxy && npx -y promptfoo eval -c promptfoo/promptfooconfig.yaml",
     "clean": "rm -rf packages/*/dist packages/*/out node_modules/.cache"
   },
   "devDependencies": {
