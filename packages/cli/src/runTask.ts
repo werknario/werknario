@@ -35,6 +35,8 @@ export type RunEvent =
       isNew: boolean;
       content: string;
       previous: string;
+      /** false when an existing file's current content could not be read (no real diff). */
+      diffAvailable: boolean;
     };
 
 export interface RunTaskDeps {
@@ -80,12 +82,15 @@ function recordingBackend(
     listFiles: (p) => backend.listFiles(p),
     readFile: (p) => backend.readFile(p),
     async proposeEdit(path, content, summary) {
-      // Read the current content first so the human can see a real diff.
-      let previous = "";
+      // Read the current content BEFORE staging (staging would make readFile
+      // return the new content). A read failure here is ambiguous on its own —
+      // it could be "file does not exist" or a transient error — so isNew from
+      // proposeEdit (which does its own existence check) is the source of truth.
+      let previousRaw: string | undefined;
       try {
-        previous = await backend.readFile(path);
+        previousRaw = await backend.readFile(path);
       } catch {
-        previous = "";
+        previousRaw = undefined;
       }
       const r = await backend.proposeEdit(path, content, summary);
       audit.append(agentId, "propose_edit", {
@@ -94,7 +99,12 @@ function recordingBackend(
         summary,
         bytes: content.length,
       });
-      out({ type: "proposal", path, isNew: r.isNew, content, previous });
+      // A new file has no prior content (diff = all added). An existing file
+      // whose current content could not be read must NOT be shown as an
+      // all-added diff — that would hide the real delta from the approver.
+      const diffAvailable = r.isNew || previousRaw !== undefined;
+      const previous = r.isNew ? "" : (previousRaw ?? "");
+      out({ type: "proposal", path, isNew: r.isNew, content, previous, diffAvailable });
       return r;
     },
     async createMergeRequest(args) {

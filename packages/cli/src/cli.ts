@@ -78,6 +78,12 @@ function printEvent(e: RunEvent): void {
   else if (e.type === "info") process.stdout.write(`  ${e.text}\n`);
   else if (e.type === "proposal") {
     const kind = e.isNew ? "new file" : "change";
+    if (!e.diffAvailable) {
+      process.stdout.write(
+        `\n  proposal (${kind}): ${e.path}\n    (diff unavailable — the current file could not be read; review the change carefully before approving)\n`,
+      );
+      return;
+    }
     const diff = formatDiff(diffLines(e.previous, e.content), { context: 3 });
     const indented = diff
       .split("\n")

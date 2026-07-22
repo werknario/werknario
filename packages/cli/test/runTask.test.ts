@@ -99,6 +99,33 @@ describe("runTask", () => {
     expect(mrArgs?.description).toMatch(/werknario audit anchor: \d+ entries, head [0-9a-f]{64}/);
   });
 
+  it("does not fake an all-added diff when an existing file cannot be read", async () => {
+    const audit = newAudit();
+    const out: RunEvent[] = [];
+    const backend = fakeBackend({
+      // an existing file, but the read fails transiently (not a 404)
+      readFile: vi.fn(async () => {
+        throw new Error("503 Service Unavailable");
+      }),
+      proposeEdit: vi.fn(async (path: string) => ({ path, isNew: false })),
+    });
+    await runTask("edit the existing file", {
+      ...base,
+      backend,
+      caller: scriptedCaller([
+        toolUse("propose_edit", { path: "existing.md", content: "new content", summary: "s" }, "p"),
+        text("done"),
+      ]),
+      approve: async () => true,
+      out: (e) => out.push(e),
+      audit,
+    });
+    const proposal = out.find((e) => e.type === "proposal");
+    // an existing file whose current content is unreadable must not be shown as
+    // a whole-file-added diff — the human is told the diff is unavailable instead.
+    expect(proposal).toMatchObject({ type: "proposal", isNew: false, diffAvailable: false });
+  });
+
   it("does not open an MR when the human declines, and records the decline", async () => {
     const audit = newAudit();
     const backend = fakeBackend();
