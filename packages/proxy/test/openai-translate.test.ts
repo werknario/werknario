@@ -130,7 +130,7 @@ describe("fromOpenAiResponse", () => {
     expect(r.content[0]).toMatchObject({ type: "tool_use", name: "x", input: {} });
   });
 
-  it("reads a prompt cache hit from prompt_tokens_details", () => {
+  it("reads a cache hit and subtracts it from input_tokens (no double-count)", () => {
     const r = fromOpenAiResponse({
       choices: [{ finish_reason: "stop", message: { role: "assistant", content: "ok" } }],
       usage: {
@@ -139,6 +139,11 @@ describe("fromOpenAiResponse", () => {
         prompt_tokens_details: { cached_tokens: 80 },
       },
     });
+    // OpenAI's cached_tokens is a subset of prompt_tokens. werknario's cost model
+    // wants input_tokens = the non-cached remainder, so cached tokens are not
+    // charged once at full price AND once at cache price.
     expect(r.usage?.cache_read_input_tokens).toBe(80);
+    expect(r.usage?.input_tokens).toBe(20);
+    expect(r.usage?.output_tokens).toBe(5);
   });
 });

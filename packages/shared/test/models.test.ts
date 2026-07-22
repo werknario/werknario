@@ -38,8 +38,15 @@ describe("multi-model registry (Kimi + others)", () => {
     expect(r.priceUnknown).toBe(true); // self-host = compute cost, no per-token price
   });
 
-  it("resolves a raw Kimi id to a canonical entry", () => {
-    expect(canonicalModelId("moonshotai/Kimi-K2-Instruct")).toBeDefined();
+  it("resolves a raw provider Kimi id to the non-EU direct entry (fail-safe)", () => {
+    // A bare provider-returned id must NOT be assumed to be the safe self-host
+    // route: it resolves to the priced, non-EU direct entry.
+    expect(canonicalModelId("moonshotai/Kimi-K2-Instruct")).toBe("kimi-k2-direct");
+    expect(isEuSafe("moonshotai/Kimi-K2-Instruct")).toBe(false);
+    // the self-host entry stays reachable by its explicit canonical id
+    expect(canonicalModelId("kimi-k2-instruct-selfhost")).toBe(
+      "kimi-k2-instruct-selfhost",
+    );
   });
 
   it("blocks a routing policy that sends a tier to a non-EU model", () => {

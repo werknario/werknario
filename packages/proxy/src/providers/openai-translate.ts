@@ -165,13 +165,17 @@ export function fromOpenAiResponse(json: OpenAiResponseJson): LlmResponse {
   }
 
   const u = json.usage;
+  // Wichtig: in der OpenAI-Form ist cached_tokens eine TEILMENGE von prompt_tokens,
+  // nicht additiv wie bei Anthropic. werknarios Kostenmodell (tokens.ts) erwartet
+  // aber die Anthropic-Invariante "input_tokens = nicht gecachte Token". Also die
+  // gecachten Token abziehen, sonst werden sie einmal voll UND einmal zum
+  // Cache-Preis berechnet.
+  const cacheRead = u?.prompt_tokens_details?.cached_tokens ?? 0;
   const usage: LlmUsage | undefined = u
     ? {
-        input_tokens: u.prompt_tokens ?? 0,
+        input_tokens: Math.max(0, (u.prompt_tokens ?? 0) - cacheRead),
         output_tokens: u.completion_tokens ?? 0,
-        // Diese Anbieter unterscheiden Cache-Schreiben/-Lesen meist nicht; ein
-        // Cache-Treffer steht, wenn überhaupt, in prompt_tokens_details.
-        cache_read_input_tokens: u.prompt_tokens_details?.cached_tokens,
+        cache_read_input_tokens: cacheRead > 0 ? cacheRead : undefined,
       }
     : undefined;
 

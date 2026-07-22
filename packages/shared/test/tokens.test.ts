@@ -124,4 +124,19 @@ describe("TokenLedger", () => {
     expect(ledger.status()).toBe("ok");
     expect(ledger.ratioUsed()).toBe(0);
   });
+
+  it("does not let a non-finite usage value poison the ledger or open the gate", () => {
+    const ledger = new TokenLedger({ budget: { maxUsd: 10, warnAtRatio: 0.8 } });
+    // A misbehaving openai-compatible endpoint sends a string instead of a number.
+    ledger.record(
+      { input_tokens: "boom" as unknown as number, output_tokens: 5 },
+      "claude-haiku-4-5",
+    );
+    const t = ledger.totals();
+    expect(Number.isFinite(t.inputTokens)).toBe(true);
+    expect(Number.isFinite(t.costUsd)).toBe(true);
+    // A subsequent real, expensive call still trips the gate (fail-safe, not fail-open).
+    ledger.record(usage({ output_tokens: 100 * M }), "claude-opus-4-8"); // $2500
+    expect(ledger.status()).toBe("over");
+  });
 });

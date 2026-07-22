@@ -15,6 +15,16 @@ import type { LlmUsage } from "./types.js";
 /** Aufschlag des Bedrock-EU-Regional-Endpunkts gegenüber dem Listenpreis. */
 const BEDROCK_EU_PREMIUM = 0.1;
 
+/**
+ * Nur endliche Zahlen durchlassen, sonst 0. Die usage-Felder kommen aus einer
+ * ungeprüften HTTP-Antwort (openai-compatible castet roh). Ein String oder NaN
+ * darf das Konto nicht vergiften — sonst würde eine einzige kaputte Antwort das
+ * Budget-Gate lautlos für die ganze Sitzung ausschalten (fail-open).
+ */
+function toFinite(n: unknown): number {
+  return typeof n === "number" && Number.isFinite(n) ? n : 0;
+}
+
 export interface CostEstimate {
   costUsd: number;
   /** true, wenn für dieses Modell kein verifizierter Preis vorliegt. */
@@ -41,10 +51,10 @@ export function estimateCostUsd(
   const price = spec?.price;
   if (!price) return { costUsd: 0, priceUnknown: true };
 
-  const input = usage.input_tokens ?? 0;
-  const output = usage.output_tokens ?? 0;
-  const cacheWrite = usage.cache_creation_input_tokens ?? 0;
-  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  const input = toFinite(usage.input_tokens);
+  const output = toFinite(usage.output_tokens);
+  const cacheWrite = toFinite(usage.cache_creation_input_tokens);
+  const cacheRead = toFinite(usage.cache_read_input_tokens);
 
   const perTok = (perMTok: number | undefined) => (perMTok ?? 0) / 1_000_000;
   let cost =
@@ -103,10 +113,10 @@ export class TokenLedger {
   record(usage: LlmUsage, model: string): void {
     const t = this.totalsAcc;
     t.calls += 1;
-    t.inputTokens += usage.input_tokens ?? 0;
-    t.outputTokens += usage.output_tokens ?? 0;
-    t.cacheWriteTokens += usage.cache_creation_input_tokens ?? 0;
-    t.cacheReadTokens += usage.cache_read_input_tokens ?? 0;
+    t.inputTokens += toFinite(usage.input_tokens);
+    t.outputTokens += toFinite(usage.output_tokens);
+    t.cacheWriteTokens += toFinite(usage.cache_creation_input_tokens);
+    t.cacheReadTokens += toFinite(usage.cache_read_input_tokens);
 
     const { costUsd, priceUnknown } = estimateCostUsd(usage, model, {
       bedrockEu: this.opts.bedrockEu,
@@ -123,6 +133,9 @@ export class TokenLedger {
   ratioUsed(): number {
     const budget = this.opts.budget;
     if (!budget || budget.maxUsd <= 0) return 0;
+    // Fail-safe: sollten die Kosten trotz Coercion nicht endlich sein, gilt das
+    // Budget als überschritten, nicht als unberührt.
+    if (!Number.isFinite(this.totalsAcc.costUsd)) return Infinity;
     return this.totalsAcc.costUsd / budget.maxUsd;
   }
 
@@ -130,7 +143,7 @@ export class TokenLedger {
     const budget = this.opts.budget;
     if (!budget) return "ok";
     const ratio = this.ratioUsed();
-    if (ratio >= 1) return "over";
+    if (!Number.isFinite(ratio) || ratio >= 1) return "over";
     if (ratio >= budget.warnAtRatio) return "warn";
     return "ok";
   }

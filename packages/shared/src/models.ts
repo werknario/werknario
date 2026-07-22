@@ -138,6 +138,12 @@ export const MODELS: ModelSpec[] = [
   // haben: einen EU-Weg und einen billigen nicht-EU-Direktweg (nur ohne
   // Personenbezug). Preise, wo aggregiert oder noch offen, ehrlich als null oder
   // im note-Feld markiert.
+  //
+  // Matching-Prinzip (fail-safe): die "sicheren" Einträge (self-host, EU-über-
+  // Hoster) matchen NUR ihre explizite kanonische ID. Ein roher, vom Anbieter
+  // zurückgegebener Modellname (z. B. "moonshotai/Kimi-K2-Instruct") fällt damit
+  // auf den nicht-EU-Direkteintrag zurück — richtig bepreist und bei der
+  // DSGVO-Prüfung als non-eu behandelt, statt fälschlich als EU-sicher.
   {
     id: "mistral-large-3",
     label: "Mistral Large 3",
@@ -157,7 +163,8 @@ export const MODELS: ModelSpec[] = [
     id: "qwen3-coder-ovhcloud",
     label: "Qwen3-Coder (OVHcloud AI Endpoints)",
     provider: "openai-compatible",
-    match: ["qwen3-coder"],
+    match: ["qwen3-coder-ovhcloud"], // nur explizit; sichere EU-Route
+
     contextWindow: 256_000,
     supportsTools: true,
     dataResidency: "eu",
@@ -167,7 +174,8 @@ export const MODELS: ModelSpec[] = [
     id: "deepseek-v4-flash-ovhcloud",
     label: "DeepSeek V4-Flash (OVHcloud AI Endpoints)",
     provider: "openai-compatible",
-    match: ["deepseek-v4-flash"],
+    match: ["deepseek-v4-flash-ovhcloud"], // nur explizit; sichere EU-Route
+
     contextWindow: 1_000_000,
     supportsTools: true,
     dataResidency: "eu",
@@ -193,7 +201,8 @@ export const MODELS: ModelSpec[] = [
     id: "kimi-k2-instruct-selfhost",
     label: "Kimi-K2-Instruct (Eigenbetrieb EU)",
     provider: "openai-compatible",
-    match: ["kimi-k2-instruct"],
+    match: ["kimi-k2-instruct-selfhost"], // nur explizit; sichere Self-Host-Route
+
     contextWindow: 128_000,
     supportsTools: true,
     dataResidency: "self-host",
