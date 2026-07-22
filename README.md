@@ -6,9 +6,9 @@ anything is final. Your files live in Git (GitLab or GitHub). An agent here is
 software that carries a task through to the end, not just answers.
 
 The point is not that AI writes your documents. Plenty of tools claim that. The
-point is the mechanism: every change is a reviewable diff, proposed by a named
-agent and approved by a named human, and the whole history can be verified
-rather than trusted.
+point is the mechanism: every change is a reviewable diff (the exact lines a
+change adds and removes), proposed by a named agent and approved by a named
+human, and the whole history can be verified rather than trusted.
 
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![Node](https://img.shields.io/badge/node-20%2B-informational)
@@ -18,20 +18,38 @@ The CI badge is guidance, not a live status: the repo ships pipelines for both
 GitLab CI (`.gitlab-ci.yml`) and GitHub Actions (`.github/`). Check your own
 run for the current result.
 
-## Try it in 30 seconds
+## Try it (one command after install)
 
-No account, no key, no server. This runs the whole flow against an in-memory
-repo with a scripted model, so you can see the shape of it:
+No account, no key, no server. The first `npm install` pulls dependencies and
+can take a few minutes; the demo itself runs in under a second. It runs the
+whole flow against an in-memory repo with a scripted model, so you can see the
+shape of it:
 
 ```bash
 npm install
 npm run build
+npm run demo
+```
+
+`npm run demo` is a small Node launcher, so it behaves the same on Windows
+(PowerShell or cmd), macOS, and Linux. Advanced users can drive the CLI
+directly instead:
+
+```bash
 LLM_PROVIDER=mock WERKNARIO_BACKEND=mock \
   node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
 ```
 
-Real output. The agent reads a note, proposes a new split-sheet file, opens a
-merge request, merges it, and writes an audit log:
+That inline form is bash syntax. On Windows PowerShell set each variable on its
+own line (`$env:LLM_PROVIDER='mock'`); cmd uses `set "LLM_PROVIDER=mock"`. The
+`.env` file (copy `.env.example`) avoids the difference.
+
+The demo passes `--yes`, so it auto-approves every write for a hands-off first
+look. A real run does the opposite: it pauses for a human `yes` on every write
+and on the merge itself.
+
+Real output (abridged). The agent reads a note, proposes a new split-sheet
+file, opens a merge request, merges it, and writes an audit log:
 
 ```
 Note: no policy file at .werknario/policy.json — agent:assistant may write any path. See docs/permissions.md.
@@ -50,6 +68,8 @@ Ich lese zuerst die Notiz.
 
 Entwurf vorgelegt und Merge Request geöffnet. Bitte die offenen Anteile prüfen.
 
+— 4 model call(s), 5,680 tokens
+
 Merge request opened: mock://merge-request/1
   Merged !1.
 
@@ -66,9 +86,9 @@ With Docker instead (the image puts `werknario` on PATH):
 docker compose run --rm demo
 ```
 
-Optional, once: `cd packages/cli && npm link` puts `werknario` on your PATH so
-you can drop the `node packages/cli/dist/cli.js` prefix. Everything below uses
-the source form so it works without that step.
+Optional, once: `npm link -w @werknario/cli` from the repo root puts `werknario`
+on your PATH so you can drop the `node packages/cli/dist/cli.js` prefix.
+Everything below uses the source form so it works without that step.
 
 ## What runs today, and what does not
 
@@ -80,7 +100,7 @@ the source form so it works without that step.
 | Model registry with prices and a data-residency flag; deterministic model router; token budget; prompt caching | A vector index for retrieval, held behind a measured Recall@k threshold |
 | Grounding gate: a citation to a file or line the agent never read hard-blocks the merge request; the number-coverage check is advisory | |
 | Path permission policy (which agent may write which path globs) | |
-| Tamper-evident, hash-chained audit log, plus offline `verify` | |
+| Tamper-evident, hash-chained audit log (each entry seals the one before it, so any later edit is detectable), plus offline `verify` | |
 | The VS Code Web IDE extension, the LLM proxy server, and the gallery-proxy registry service | |
 
 The offline mock path is proven end to end. The GitLab and GitHub paths are
@@ -91,22 +111,28 @@ for the full breakdown.
 ## Use it for real
 
 Point it at a repo and a model, then give it a task in plain language. It shows
-you each diff; you approve each write in the terminal.
+you each diff; you approve each write in the terminal. Both examples below stay
+on an EU route by default; a non-EU model is blocked before the first call
+unless you set `WERKNARIO_ALLOW_NON_EU=1`. To avoid shell differences, copy
+`.env.example` to `.env` (Windows: `copy .env.example .env`), put these values
+there, and run the command with no `export` lines.
 
 ```bash
-# GitLab
+# GitLab — EU route: Bedrock in an EU region
 export WERKNARIO_BACKEND=gitlab
 export GITLAB_BASE_URL=https://gitlab.com
 export GITLAB_PROJECT_ID=12345
 export GITLAB_TOKEN=...            # scope: api
-export LLM_PROVIDER=anthropic
-export CLAUDE_API_TOKEN=...
+export LLM_PROVIDER=bedrock
+export AWS_REGION=eu-central-1     # an eu- region keeps the route EU; the gate blocks anything else
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
 
 node packages/cli/dist/cli.js "Summarise the new intake note into the client file"
 ```
 
 ```bash
-# GitHub
+# GitHub — EU route: Mistral (EU)
 export WERKNARIO_BACKEND=github
 export GITHUB_REPO=owner/repo
 export GITHUB_TOKEN=...            # scope: contents + pull requests
@@ -140,18 +166,26 @@ it afterwards instead of trusting it.
   folder cannot rewrite the whole repo.
 - **The approver is a human reading a diff, not code.** Every write and the
   merge itself pause for a human `yes` in the terminal, so a non-developer can
-  hold the gate. The policy also carries a named-approver role; that role is
-  defined and tested but not yet enforced, so read it as design, not a control.
+  hold the gate. Holding it in the terminal still means running the CLI, so a
+  non-technical approver works from the VS Code Web IDE extension surface
+  instead. The policy also carries a named-approver role; that role is defined
+  and tested but not yet enforced by the gate, so read it as design, not a
+  control.
 - **The log is offline-verifiable.** Every step is a hash-chained entry;
   `node packages/cli/dist/cli.js verify .werknario/audit.jsonl` exits non-zero
   if the chain breaks. It is a hash chain, not a signature: it detects edits,
   reordering, and insertions after the fact, and the chain head is stamped into
   the merge request so the Git server anchors it against tail truncation.
-- **The router refuses to send personal data to a non-EU model.** Each model
-  carries a residency flag (`eu` / `self-host` / `non-eu`), and the router will
-  not run a policy that would send personal data to a model without EU
-  residency. Anything unrecognised is treated as `non-eu` by default, so the
-  failure is safe.
+- **The router refuses to send personal data to a non-EU model, and now
+  enforces it.** Before any model call the CLI resolves the route's residency:
+  `mock` is local and exempt, Bedrock counts as EU only in an `eu-` region
+  (`AWS_REGION=eu-central-1`), the direct Anthropic API is a US route and so
+  non-EU, and openai-compatible models follow the registry (Mistral and the
+  self-hosted or OVHcloud entries are EU; Kimi and DeepSeek direct are not).
+  Anything unrecognised is treated as `non-eu`, so the failure is safe. A
+  non-EU route is blocked with a clear message before the model is called; set
+  `WERKNARIO_ALLOW_NON_EU=1` to override, which prints a warning and proceeds,
+  and only for data that carries no personal information.
 
 ## Install
 
@@ -197,7 +231,8 @@ interface, so a backend or a model is a swap, not a rewrite.
 [audit and trust](docs/audit-and-trust.md) ·
 [grounding](docs/grounding.md) ·
 [permissions](docs/permissions.md) ·
-[LLM communication](docs/llm-communication.md)
+[LLM communication](docs/llm-communication.md) ·
+[Compliance (DE)](docs/de/compliance.md)
 
 **Ship and troubleshoot**
 [distribution](docs/DISTRIBUTION.md) ·

@@ -10,7 +10,9 @@ describes how that record works, precisely, including where its guarantee stops.
 
 Two mechanisms carry the weight, and they cover different things:
 
-- The **audit log** records what happened, in order, as a hash chain. It makes
+- The **audit log** records what happened, in order, as a hash chain: each
+  entry carries a fingerprint (a hash) of the entry before it, so the entries
+  link into one sequence you can replay and re-check end to end. It makes
   after-the-fact tampering with the sequence of events detectable.
 - The **grounding gate** constrains what the agent may claim before a change is
   ever proposed to a human. It hard-blocks a team-visible write whose citation
@@ -55,10 +57,11 @@ field separator to forge a collision. It also refuses a `detail` that is not
 JSON-plain (a Date, Map, Set, or class instance), rather than silently collapsing
 it to `{}`, so a value can't quietly lose information on its way into the hash.
 
-`prevHash` links each entry to the one before it. The first entry links to a
-genesis hash instead of a previous entry, and the CLI seeds that genesis with
-the repository's own path (`x-concapps/fleetlicht-demo`, for example), not a
-fixed constant. An audit log started for one repository won't silently pass
+`prevHash` links each entry to the one before it. The first entry has no
+predecessor, so it links to a genesis hash instead: the fixed starting anchor
+the whole chain is built out from. The CLI seeds that genesis with the
+repository's own path (`x-concapps/fleetlicht-demo`, for example), not a fixed
+constant. An audit log started for one repository won't silently pass
 verification if pointed at a chain that actually belongs to a different one.
 
 The hash function is injected, not imported, so the chain logic stays portable:
@@ -129,6 +132,12 @@ file cannot rewrite. So tail truncation, the one gap `verify` can't close on its
 own, is caught by cross-checking the local head against the MR-stamped head on
 the Git server. Signing entries with Sigstore is the next step after this.
 
+Taken together, that fixes what the log is worth as evidence: internal
+tamper-evidence for partial edits, anchored to the merge-request head the Git
+server independently holds. It is not court-grade non-repudiation; proving that
+one specific actor and no one else produced a given entry would need the planned
+Sigstore signing.
+
 ### Durability
 
 Each entry is written to the file the instant it is recorded (the `onAppend`
@@ -163,7 +172,7 @@ Audit .werknario/audit.jsonl — chain verified (7 entries, genesis owner/repo).
 ```
 
 Optionally, to get the short `werknario verify …` form used in the Docker image,
-link the CLI once: `cd packages/cli && npm link`. After that `werknario verify
+link the CLI once: `npm link -w @werknario/cli` from the repo root. After that `werknario verify
 .werknario/audit.jsonl` runs the same check.
 
 To verify a log file from your own code, use the library directly:

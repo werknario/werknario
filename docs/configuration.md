@@ -27,12 +27,26 @@ node packages/cli/dist/cli.js "your task in plain language" [options]
 If you prefer the short `werknario` command, link it once:
 
 ```bash
-cd packages/cli && npm link
+npm link -w @werknario/cli
 werknario "your task in plain language" [options]
 ```
 
 The Docker image puts `werknario` on PATH already, so the Docker path uses the
 short form. Pick one form per sequence and stay with it; do not mix them.
+
+### Setting environment variables (and the `.env` file)
+
+The CLI reads a `.env` file in the working directory (via `dotenv`), so the
+cross-platform way to configure a real run is to copy the template, edit it, then
+invoke the CLI with nothing set inline:
+
+```bash
+cp .env.example .env
+```
+
+On Windows use `copy .env.example .env`. Edit the file, then run `node packages/cli/dist/cli.js "your task"` and it picks up the values from `.env` on every platform.
+
+Some examples on this page set variables inline (`FOO=bar node …`), which is bash/zsh syntax. On Windows PowerShell set them first with `$env:FOO='bar'`; in cmd use `set "FOO=bar"`. The `.env` file avoids this difference, so prefer it for real use.
 
 ## CLI flags
 
@@ -164,6 +178,19 @@ dynamically). It is not installed by default, so `mock` and `anthropic` keep
 working without it. Install it and set `LLM_PROVIDER=bedrock` to use it; see
 [providers-and-models.md](providers-and-models.md).
 
+### EU data residency
+
+Before any model call, the CLI checks the route's data residency and blocks a run
+that would send data to a non-EU model, printing a `Blocked:` message and calling
+nothing. `mock` is exempt (it runs locally). `bedrock` counts as EU only when
+`AWS_REGION` starts with `eu-` (e.g. `eu-central-1`). `anthropic` (the direct API)
+is US, so non-EU. For `openai-compatible` it depends on the model in the registry
+(`packages/shared/src/models.ts`); an unknown model id is treated as non-EU.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `WERKNARIO_ALLOW_NON_EU` | unset | Set to `1` to proceed on a non-EU route. The CLI prints a `WARNING:` line and continues instead of blocking. Use only for data with no personal information |
+
 ### Proxy server only (not needed for CLI use)
 
 The CLI calls the provider in-process and never starts or talks to an HTTP
@@ -197,8 +224,7 @@ agent never read, while its number-coverage check is advisory. See
 Local offline demo, no keys, no server (`mock` provider and `mock` backend):
 
 ```bash
-LLM_PROVIDER=mock WERKNARIO_BACKEND=mock \
-  node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
+LLM_PROVIDER=mock WERKNARIO_BACKEND=mock node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
 ```
 
 The bundled demo substrate is a German-language music-label example, so the agent
@@ -211,38 +237,25 @@ Verify an existing audit log without doing a run:
 node packages/cli/dist/cli.js verify .werknario/audit.jsonl
 ```
 
-GitLab backend with the Anthropic API directly:
+GitLab backend with the Anthropic API directly. This route is US/non-EU, so it is
+blocked by default; the `WERKNARIO_ALLOW_NON_EU=1` below overrides that and should
+be used only for data with no personal information:
 
 ```bash
-WERKNARIO_BACKEND=gitlab \
-GITLAB_BASE_URL=https://gitlab.example.com \
-GITLAB_PROJECT_ID=42 \
-GITLAB_TOKEN=glpat-xxx \
-LLM_PROVIDER=anthropic \
-CLAUDE_API_TOKEN=sk-ant-xxx \
-  node packages/cli/dist/cli.js "Summarize the open issues under docs/"
+WERKNARIO_BACKEND=gitlab GITLAB_BASE_URL=https://gitlab.example.com GITLAB_PROJECT_ID=42 GITLAB_TOKEN=glpat-xxx LLM_PROVIDER=anthropic CLAUDE_API_TOKEN=sk-ant-xxx WERKNARIO_ALLOW_NON_EU=1 node packages/cli/dist/cli.js "Summarize the open issues under docs/"
 ```
 
 GitLab backend with Bedrock (EU inference profile), routing on and a two-dollar
 budget:
 
 ```bash
-WERKNARIO_BACKEND=gitlab \
-GITLAB_PROJECT_ID=42 GITLAB_TOKEN=glpat-xxx \
-LLM_PROVIDER=bedrock LLM_MODEL=eu.anthropic.claude-sonnet-5-... \
-AWS_REGION=eu-central-1 AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... \
-  node packages/cli/dist/cli.js "..." --route --budget 2
+WERKNARIO_BACKEND=gitlab GITLAB_PROJECT_ID=42 GITLAB_TOKEN=glpat-xxx LLM_PROVIDER=bedrock LLM_MODEL=eu.anthropic.claude-sonnet-5-... AWS_REGION=eu-central-1 AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... node packages/cli/dist/cli.js "..." --route --budget 2
 ```
 
 GitHub backend with an OpenAI-compatible endpoint (Mistral):
 
 ```bash
-WERKNARIO_BACKEND=github \
-GITHUB_REPO=my-org/my-docs GITHUB_TOKEN=ghp_xxx \
-LLM_PROVIDER=openai-compatible \
-LLM_OPENAI_COMPAT_BASE_URL=https://api.mistral.ai/v1 \
-LLM_OPENAI_COMPAT_API_KEY=... LLM_MODEL=mistral-large-3 \
-  node packages/cli/dist/cli.js "..."
+WERKNARIO_BACKEND=github GITHUB_REPO=my-org/my-docs GITHUB_TOKEN=ghp_xxx LLM_PROVIDER=openai-compatible LLM_OPENAI_COMPAT_BASE_URL=https://api.mistral.ai/v1 LLM_OPENAI_COMPAT_API_KEY=... LLM_MODEL=mistral-large-3 node packages/cli/dist/cli.js "..."
 ```
 
 A ready-to-copy template of every variable is in `.env.example`. Related reading:

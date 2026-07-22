@@ -12,11 +12,15 @@ choice should not touch the agent loop.
 ### A model
 
 A new model is one entry in `packages/shared/src/models.ts`, plus a test.
-The entry carries the canonical `id`, the `match` patterns that map a raw
-provider model id back to it, the price per million tokens (or `null` if you
-cannot verify it), and the `dataResidency` flag (`eu`, `self-host`, or
-`non-eu`). Nothing else in the agent needs to change: the token ledger and
-the router both read this catalog. The model registry is
+A `ModelSpec` has eight required fields, and a literal copy only compiles if
+you set all of them: `id` (the canonical catalog key), `label` (a
+human-readable name), `provider` (`anthropic`, `bedrock`,
+`openai-compatible`, or `mock`), `match` (the patterns that map a raw
+provider model id back to this entry), `contextWindow`, `supportsTools`,
+`dataResidency` (`eu`, `self-host`, or `non-eu`), and `price` (per million
+tokens, or `null` if you cannot verify it). The quickest path is to copy an
+existing entry and change all eight. Nothing else in the agent needs to
+change: the token ledger and the router both read this catalog. The model registry is
 `packages/shared/src/models.ts`. It is not the `registry/` package, which is
 the unrelated gallery-proxy service.
 
@@ -76,16 +80,17 @@ the read to propose to approve to merge path:
 
 ```bash
 npm run build
-LLM_PROVIDER=mock WERKNARIO_BACKEND=mock \
-  node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
+npm run demo
 ```
 
 A green run reads a note, proposes a new split-sheet file, opens
 `mock://merge-request/1`, merges it, and ends with an audit line that reports
-the chain verified. The bundled demo substrate is a German-language music
-label, so the agent narrates in German; point it at your own repo for
-English. Then run `npm test` and `npm run typecheck` (below), and add a test
-for the new behavior.
+the chain verified. The narration comes out in German because the bundled
+demo substrate is a German-language music label. The language follows the
+content the agent reads; it is not a language flag you can set. To run
+against your own content, point it at a different repository (see
+[docs/configuration.md](docs/configuration.md)). Then run `npm test` and
+`npm run typecheck` (below), and add a test for the new behavior.
 
 ## Prerequisites
 
@@ -99,7 +104,11 @@ for the new behavior.
 npm install
 ```
 
-This installs and links every workspace: `packages/*` and `registry`.
+This installs and links every workspace: `packages/*` and `registry`. The
+first install pulls the whole build chain and takes a few minutes, and it
+prints npm audit advisories that all come from dev-only tooling
+(esbuild/vite/vitest). `npm audit --omit=dev` reports 0 vulnerabilities, so
+nothing in the shipped CLI is affected.
 
 ## Run tests
 
@@ -165,8 +174,7 @@ Same command as the pre-PR check above, no credentials and no server:
 ```bash
 npm install
 npm run build
-LLM_PROVIDER=mock WERKNARIO_BACKEND=mock \
-  node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
+npm run demo
 ```
 
 During iteration you can skip the build and run the source directly with

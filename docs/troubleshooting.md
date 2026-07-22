@@ -32,7 +32,7 @@ node packages/cli/dist/cli.js verify .werknario/audit.jsonl
 Optional, once, if you would rather type the short name: link it onto your PATH.
 
 ```bash
-cd packages/cli && npm link
+npm link -w @werknario/cli
 werknario "some task"
 ```
 
@@ -141,10 +141,16 @@ missing value surfaces only when the first call is made. Known shapes:
   https://api.mistral.ai/v1).`
 - `bedrock` without the optional SDK throws `LLM_PROVIDER=bedrock requires the
   optional "@anthropic-ai/bedrock-sdk" package, which is not installed.`
-- `anthropic` or any `openai-compatible` endpoint with a missing or invalid key
-  returns an HTTP `401`/`403` from the vendor, which werknario surfaces (for
-  team-visible actions, as "Access to the document store was denied" with the
-  hint to check the token).
+- A provider key that is entirely absent throws locally, before any HTTP call,
+  and werknario surfaces `No API key is set for the selected model provider.`
+  with the hint to set the provider's key (for Anthropic, `CLAUDE_API_TOKEN`) or
+  run offline with `LLM_PROVIDER=mock`. There is no status code here; the SDK
+  never reached the vendor.
+- A key that is present but wrong is different: the vendor answers with a `401`
+  (or `403`), which werknario surfaces for team-visible actions as "Access to
+  the document store was denied" with the hint to check the token. Absent key
+  and invalid key are separate cases, so read the message rather than assuming a
+  missing key produces a 401.
 
 **Fix.** Set the environment for the provider you chose. The variables each one
 reads:
@@ -166,6 +172,54 @@ LLM_PROVIDER=mock WERKNARIO_BACKEND=mock \
 
 Full per-provider configuration is in
 [providers-and-models.md](providers-and-models.md) and
+[configuration.md](configuration.md).
+
+## The run is blocked over EU data residency
+
+**Symptom.** Before any file is read or any model is called, the CLI exits
+non-zero and prints something like
+
+```
+Blocked: anthropic/claude-... has no verified EU data residency. werknario blocks this by default so personal data stays in the EU. Use an EU or self-hosted model (see docs/providers-and-models.md), or set WERKNARIO_ALLOW_NON_EU=1 to override for data with no personal information.
+```
+
+**Cause.** This is the EU-residency gate, not a bug. werknario checks the route
+before the first model call and refuses one it cannot confirm stays in the EU.
+The `mock` provider is exempt (it runs locally, nothing leaves the machine).
+`bedrock` counts as EU only when `AWS_REGION` starts with `eu-` (for example
+`eu-central-1`); any other region is treated as non-EU. The `anthropic` direct
+API is a US route and is blocked by default even for a Claude model id. For
+`openai-compatible`, residency comes from the model registry, and a model id it
+does not recognise is treated as non-EU on purpose (fail-safe).
+
+**Fix.** Pick a route with confirmed residency, or override for
+non-personal data only.
+
+- Switch to an EU or self-hosted model. In the registry, `mistral-large-3` is
+  EU, the `*-ovhcloud` entries are EU, and the `*-selfhost` entries are
+  self-hosted. For Bedrock, set an `eu-` region.
+- If, and only if, the data carries no personal information, set
+  `WERKNARIO_ALLOW_NON_EU=1`. The run then proceeds and the CLI prints a
+  `WARNING:` line recording that the gate was overridden. Do not use this for
+  anything with personal data in it.
+
+The residency rules for every provider and model are in
+[providers-and-models.md](providers-and-models.md).
+
+## The model endpoint could not be reached
+
+**Symptom.** The run reaches the first model call and fails with `The model
+endpoint could not be reached.` and a hint to check the endpoint URL.
+
+**Cause.** The request never got an HTTP answer at all: a wrong URL, a service
+that is down, or a DNS or connection failure (`fetch failed`, `ECONNREFUSED`,
+`ENOTFOUND`, a timeout). This is distinct from an auth failure, where the vendor
+does answer, with a `401`.
+
+**Fix.** For an `openai-compatible` provider, check `LLM_OPENAI_COMPAT_BASE_URL`
+points at a reachable endpoint (for example `https://api.mistral.ai/v1`) and that
+the service is actually running. For a self-hosted endpoint, confirm it is up and
+reachable from where the CLI runs. Per-provider endpoint settings are in
 [configuration.md](configuration.md).
 
 ## GitLab or GitHub backend errors, including token scope

@@ -28,6 +28,33 @@ A policy only starts restricting an agent once the file exists, names that
 agent, and gives it rules. Everything below describes what happens once you
 opt in by writing the file.
 
+## Lock it down first (regulated environments)
+
+If you work in a law firm, clinic, or public body, do not start from the
+permissive default. Start closed. The repo ships a start-closed template at
+`.werknario/policy.starter.json`: it gives `agent:assistant` a non-empty
+`allow` list of just `inbox/**` and `drafts/**`. A non-empty `allow` list
+inverts the default: the agent may write only paths that match one of those
+globs, and every other path is refused with a reason (see the decision steps
+below). Nothing outside the folders you named is writable until you say so.
+
+Copy the template to the path the CLI actually reads, then edit it:
+
+```
+cp .werknario/policy.starter.json .werknario/policy.json
+```
+
+On Windows use `copy .werknario\policy.starter.json .werknario\policy.json`
+in cmd, or `Copy-Item` in PowerShell.
+
+Then widen `allow` deliberately, one folder at a time, as you come to trust
+the agent with more of the tree. Add a glob to `allow` only when you have
+decided that area is safe for the agent to write. Leave `deny` for the
+exceptions inside an allowed area (the salary example under
+[Shape](#shape)). The starter also seeds an `approvers` block, but read the
+caveat below before you rely on it: it records intent, it does not gate
+anything yet.
+
 ## Shape
 
 ```json
@@ -114,6 +141,23 @@ release does not have. Treat `approvers` as a schema you can populate now,
 ready for a future or external check to read, not as an enforced
 access-control gate. Do not describe this as four-eyes approval; the
 approver role is designed and tested, not enforced.
+
+### Who actually approves, and how
+
+Since the `approvers` list does not gate anything, approval today is just
+whoever is at the controls saying yes. There are two surfaces:
+
+- A developer runs the CLI and answers the interactive confirm prompt in the
+  terminal (or passes `--yes` to approve everything on an unattended run).
+  The `--human` / `WERKNARIO_HUMAN` label is written into the audit log next
+  to that yes, but it is self-declared, so it proves intent, not identity.
+- A non-technical approver uses the VS Code Web IDE extension surface, which
+  shows the staged change and its diff and offers the same accept action
+  without a terminal. It is the same underlying confirm; only the front end
+  differs.
+
+Neither surface checks the acting person against the `approvers` list for
+the path. That check is the enforcement work still to come.
 
 ## Validation
 

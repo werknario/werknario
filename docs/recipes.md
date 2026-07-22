@@ -10,7 +10,7 @@ because the bare `werknario` command is not on your PATH after `npm install`. If
 you prefer the short form, link it once:
 
 ```bash
-cd packages/cli && npm link
+npm link -w @werknario/cli
 ```
 
 after which `werknario <args>` works everywhere. The Docker image already puts
@@ -27,8 +27,7 @@ The offline demo runs the whole flow against an in-memory repo and a scripted
 model. No keys, no server:
 
 ```bash
-LLM_PROVIDER=mock WERKNARIO_BACKEND=mock \
-  node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
+npm run demo
 ```
 
 You will see a one-line policy notice, the agent reading a session note and
@@ -65,8 +64,7 @@ merge request and writes nothing team-visible. Use it to see what a task would d
 before you let it run for real:
 
 ```bash
-node packages/cli/dist/cli.js \
-  "Rewrite onboarding/welcome.md to mention the new office in Essen" --dry-run
+node packages/cli/dist/cli.js "Rewrite onboarding/welcome.md to mention the new office in Essen" --dry-run
 ```
 
 ## Summarise an intake note into a client file
@@ -75,9 +73,7 @@ A new-client note lands in `intake/`. Fold a short summary into the matter file
 so the next person opening the case sees the gist first:
 
 ```bash
-node packages/cli/dist/cli.js \
-  "Read intake/2026-07-neuer-mandant.md and add a one-paragraph summary to the \
-top of clients/schmidt-gmbh/akte.md"
+node packages/cli/dist/cli.js "Read intake/2026-07-neuer-mandant.md and add a one-paragraph summary to the top of clients/schmidt-gmbh/akte.md"
 ```
 
 The agent reads the intake note, drafts the edit, shows you the diff, and opens a
@@ -90,9 +86,7 @@ request — see [grounding.md](grounding.md).
 Turn a raw meeting note into a structured document written to a new path:
 
 ```bash
-node packages/cli/dist/cli.js \
-  "From notes/2026-07-22-kickoff.md, write a project brief with sections \
-Scope, Owner, and Next steps into briefs/2026-07-22-kickoff.md"
+node packages/cli/dist/cli.js "From notes/2026-07-22-kickoff.md, write a project brief with sections Scope, Owner, and Next steps into briefs/2026-07-22-kickoff.md"
 ```
 
 The source note is read, the new file is proposed as a diff against an empty
@@ -105,8 +99,7 @@ proposes the exact text and waits for your approval before posting, since a
 comment is team-visible:
 
 ```bash
-node packages/cli/dist/cli.js \
-  "Draft a reply to the most recent issue that touches docs/, as a comment"
+node packages/cli/dist/cli.js "Draft a reply to the most recent issue that touches docs/, as a comment"
 ```
 
 Which platform the comment lands on (GitLab issue or GitHub issue) follows your
@@ -119,9 +112,7 @@ keep two guardrails: a cost ceiling and an external command that must pass befor
 any merge:
 
 ```bash
-node packages/cli/dist/cli.js \
-  "Regenerate the table of contents in docs/README.md from the file tree" \
-  --yes --budget 1 --verify-cmd "npm run lint"
+node packages/cli/dist/cli.js "Regenerate the table of contents in docs/README.md from the file tree" --yes --budget 1 --verify-cmd "npm run lint"
 ```
 
 `--budget 1` stops the run once its estimated cost reaches one dollar.
@@ -137,8 +128,7 @@ files) to a cheaper model and keep the capable model for the drafting. It stacks
 with any task and with a budget:
 
 ```bash
-node packages/cli/dist/cli.js \
-  "Fix the broken relative links in docs/README.md" --route --budget 1
+node packages/cli/dist/cli.js "Fix the broken relative links in docs/README.md" --route --budget 1
 ```
 
 Which models the router chooses depends on your model registry and residency

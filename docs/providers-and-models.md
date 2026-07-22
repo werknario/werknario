@@ -80,18 +80,46 @@ for a model it does not recognize; instead it counts the call under
 
 ## Data residency and GDPR
 
-`dataResidency` on each `ModelSpec` answers one question: where does the
-request actually get processed?
+Residency is a property of the *route*, not just the model id. The same Claude
+model is EU over Bedrock's EU region but non-EU over Anthropic's direct US API,
+so the check keys on the provider (and, for Bedrock, the region) and only falls
+back to the model's `dataResidency` field for `openai-compatible` endpoints.
+
+`dataResidency` on each `ModelSpec` records where that model's own endpoint
+processes the request:
 
 | Value | Meaning |
 |---|---|
 | `eu` | The provider guarantees EU data residency (Bedrock's EU inference profile, Mistral via La Plateforme in Paris) |
 | `self-host` | Open weights, run inside the EU yourself. No token price; the cost is your own compute |
-| `non-eu` | Only reachable through a non-EU endpoint. Not appropriate for personal data without a separate legal basis (SCCs, for example). The registry flags these so a deployment does not send personal data there by accident |
+| `non-eu` | Only reachable through a non-EU endpoint. Not appropriate for personal data without a separate legal basis (SCCs, for example). The gate blocks these by default so a deployment does not send personal data there by accident |
 
-`isEuSafe(modelId)` looks a model up and returns `true` only for `eu` or
-`self-host`. An unrecognized model id is not safe by default; the function
-fails closed rather than assuming the best.
+### The enforced gate
+
+`checkRunResidency(provider, modelId, { region, allowNonEu })` runs at CLI
+startup, before any backend or model is touched (`packages/cli/src/cli.ts`
+calls it, `packages/shared/src/routing.ts` implements it). It resolves the
+route's residency like this:
+
+- `mock` is exempt: it runs locally and no data leaves the machine.
+- `bedrock` is `eu` only when `AWS_REGION` starts with `eu-` (for example
+  `eu-central-1`); any other region is treated as non-EU.
+- `anthropic` (the direct API) is US-based, so it is always non-EU, even for a
+  Claude model id, and blocked by default.
+- `openai-compatible` follows the model registry: an `eu` or `self-host`
+  `ModelSpec` passes; a `non-eu` one is blocked.
+- An unknown model id (nothing in the registry matches) is treated as non-EU.
+  The gate fails safe rather than assuming the best.
+
+A non-EU route is blocked with a clear message before any model call, so
+werknario refuses to send personal data to a non-EU model by default. To
+proceed anyway, set `WERKNARIO_ALLOW_NON_EU=1`: the CLI prints a `WARNING`
+line and continues. Use it only for data that carries no personal information.
+
+`isEuSafe(modelId)` is the model-level version of the same rule: it looks a
+model up and returns `true` only for `eu` or `self-host`, and an unrecognized
+id fails closed. The deterministic router uses it through
+`validateRoutingPolicy` to reject a policy whose tiers include a non-EU model.
 
 Matching is deliberately asymmetric for safety. The "safe" entries (self-host,
 EU-via-hoster) match only their exact canonical id. A raw model name a provider
@@ -100,7 +128,7 @@ non-EU direct entry instead, so an unexpected raw id gets priced and
 residency-flagged correctly rather than counted as EU-safe just because the
 family name matches. The path permission policy in
 [permissions.md](permissions.md) controls which files the agent may touch; the
-residency flag here is the separate question of where the model runs.
+residency check here is the separate question of where the model runs.
 
 ## Adding a model
 

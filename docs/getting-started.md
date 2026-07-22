@@ -30,13 +30,18 @@ npm install
 npm run build
 ```
 
+The first `npm install` takes a few minutes and prints npm audit advisories for
+the dev-only build chain (esbuild, vite, vitest). Nothing in the shipped CLI is
+affected: `npm audit --omit=dev` reports 0 vulnerabilities.
+
 `npm run build` bundles the CLI to a single file at `packages/cli/dist/cli.js`.
 Every command in this guide runs that file directly with `node`. After a source
 build the bare `werknario` command is not on your PATH.
 
 Optional, once: if you would rather type `werknario` than the full node path, run
-`cd packages/cli && npm link` to put the short command on your PATH. This guide
-stays with the node form so the commands work whether or not you did this.
+`npm link -w @werknario/cli` from the repo root to put the short command on your
+PATH. This guide stays with the node form so the commands work whether or not you
+did this.
 
 ## Step 2 — The 30-second offline demo
 
@@ -44,12 +49,26 @@ This runs the complete flow against an in-memory repository and a scripted model
 No key, no server, nothing real is touched:
 
 ```bash
+npm run demo
+```
+
+`npm run demo` is a small node launcher. It works the same on Windows (PowerShell
+or cmd), macOS, and Linux, because node sets the mock provider and mock backend
+rather than a bash-only inline `FOO=bar` prefix. It approves each write
+automatically so the demo runs unattended.
+
+Advanced users can call the bundled CLI directly instead:
+
+```bash
 LLM_PROVIDER=mock WERKNARIO_BACKEND=mock \
   node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
 ```
 
-`--yes` approves each write automatically so the demo runs unattended. Drop it and
-the CLI stops to ask you before every team-visible step. What you see:
+That inline `FOO=bar` prefix is bash syntax. On Windows PowerShell set the two
+variables first with `$env:LLM_PROVIDER='mock'`; cmd uses `set "LLM_PROVIDER=mock"`.
+`npm run demo` avoids all of that. Drop `--yes` from the raw form and the CLI stops
+to ask you before every team-visible write. What you see (the head hash is a
+per-run value, so yours will differ):
 
 ```
 Note: no policy file at .werknario/policy.json — agent:assistant may write any path. See docs/permissions.md.
@@ -79,7 +98,7 @@ Entwurf vorgelegt und Merge Request geöffnet. Bitte die offenen Anteile prüfen
 Merge request opened: mock://merge-request/1
   Merged !1.
 
-Audit: 8 entries at .werknario/audit.jsonl — chain verified.
+Audit: 8 entries at .werknario/audit.jsonl — chain verified (head <per-run hash>).
 ```
 
 The agent read a note, proposed a new file (shown as a diff), opened a merge
@@ -112,7 +131,8 @@ cat .werknario/audit.jsonl
 Each line records who acted (`human:you`, `agent:assistant`, or `system`), what
 they did, the details, and two hashes: `prevHash`, the hash of the line before
 it, and `hash`, this line's own hash computed over its fields plus that
-`prevHash`. That linkage is the chain:
+`prevHash`. That linkage is the chain (hashes abbreviated below; real values differ
+per run):
 
 ```json
 {"seq":2,"actor":"human:you","action":"approve","detail":{"tool":"create_merge_request"},"prevHash":"1bb3…","hash":"455b…"}
@@ -146,36 +166,82 @@ chain would add, is in [audit-and-trust.md](audit-and-trust.md).
 
 A real run points the same flow at your own GitLab or GitHub repository and a real
 model. You give the task in plain language; the agent proposes and shows you the
-diff; you approve each write in the terminal. Set the backend and the model
-through environment variables (secrets stay in the environment, never in a flag or
-in shell history).
+diff; you approve each write in the terminal.
 
-Against GitLab:
+Configuration lives in a `.env` file in your working directory, not in inline shell
+variables. The CLI reads it on startup, so the same setup works on every OS and
+keeps tokens out of your shell history. Copy the template, then edit it:
 
 ```bash
-export WERKNARIO_BACKEND=gitlab
-export GITLAB_BASE_URL=https://gitlab.com     # your self-hosted URL, if any
-export GITLAB_PROJECT_ID=12345
-export GITLAB_TOKEN=...                        # scope: api
-export LLM_PROVIDER=anthropic
-export CLAUDE_API_TOKEN=...
+cp .env.example .env
+```
 
+On Windows use `copy .env.example .env` in PowerShell or cmd.
+
+Open `.env` and set your backend and a model route. werknario checks data residency
+before the first model call and blocks any route with no verified EU residency by
+default, so keep the model in the EU. Two common setups.
+
+GitLab with Claude on AWS Bedrock (the werknario default, EU inference profile):
+
+```
+WERKNARIO_BACKEND=gitlab
+GITLAB_BASE_URL=https://gitlab.com   # your self-hosted URL, if any
+GITLAB_PROJECT_ID=12345
+GITLAB_TOKEN=...                      # scope: api
+LLM_PROVIDER=bedrock
+AWS_REGION=eu-central-1               # an eu-* region is what makes this an EU route
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+LLM_MODEL=eu.anthropic.claude-...     # the EU inference profile id from your Bedrock console
+```
+
+GitHub with Mistral (EU-native):
+
+```
+WERKNARIO_BACKEND=github
+GITHUB_REPO=owner/repo
+GITHUB_TOKEN=...                      # scope: contents + pull requests
+LLM_PROVIDER=openai-compatible
+LLM_OPENAI_COMPAT_BASE_URL=https://api.mistral.ai/v1
+LLM_OPENAI_COMPAT_API_KEY=...
+LLM_MODEL=mistral-large-3
+```
+
+With `.env` saved, run the task with no inline variables:
+
+```bash
 node packages/cli/dist/cli.js "Summarise the new intake note into the client file"
 ```
 
-Against GitHub:
+The run pauses at each team-visible write and asks you in the terminal (the title,
+branch, and body values below are illustrative):
+
+```
+The agent wants to open a merge/pull request:
+  title:  ...
+  branch: ...
+  body:   ...
+
+Approve? [y/N]
+```
+
+Type `y` to proceed; anything else declines. Before the request merges it asks once
+more, `Merge !12 now? [y/N]`. That terminal prompt is where the human stays in the
+loop.
+
+For an unattended or scheduled run, add `--yes` (or set `WERKNARIO_AUTO_APPROVE=1`
+in `.env`) to approve every write without stopping. Reach for it deliberately, once
+you trust the task:
 
 ```bash
-export WERKNARIO_BACKEND=github
-export GITHUB_REPO=owner/repo
-export GITHUB_TOKEN=...                        # scope: contents + pull requests
-export LLM_PROVIDER=openai-compatible
-export LLM_OPENAI_COMPAT_BASE_URL=https://api.mistral.ai/v1
-export LLM_OPENAI_COMPAT_API_KEY=...
-export LLM_MODEL=mistral-large-3
-
-node packages/cli/dist/cli.js "Draft a reply to the latest issue in docs/"
+node packages/cli/dist/cli.js "Summarise the new intake note into the client file" --yes
 ```
+
+The direct Anthropic API (`LLM_PROVIDER=anthropic`, `CLAUDE_API_TOKEN=...`) is a US
+route with no EU data residency, so werknario blocks it by default. Only when your
+data holds no personal information, override with `WERKNARIO_ALLOW_NON_EU=1`; the CLI
+prints a warning and proceeds.
 
 Useful flags for a real run:
 

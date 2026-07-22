@@ -47,11 +47,11 @@ npm run build   # Node 20+
 
 Confirm the build with the local offline demo. It needs no key and no server: a
 scripted model acts on an in-memory repository, so you see the full shape of a
-run without configuring anything.
+run without configuring anything. `npm run demo` behaves the same on Windows,
+macOS, and Linux:
 
 ```bash
-LLM_PROVIDER=mock WERKNARIO_BACKEND=mock \
-  node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
+npm run demo
 ```
 
 Expected output: a one-line policy notice, the agent reading a note and proposing
@@ -73,7 +73,7 @@ After `npm install`, the bare `werknario` command is not on your PATH. Use the
 rather type the short name, run this optional one-time step:
 
 ```bash
-cd packages/cli && npm link   # then `werknario <args>` works anywhere
+npm link -w @werknario/cli   # from the repo root; then `werknario <args>` works anywhere
 ```
 
 Everything below uses the `node packages/cli/dist/cli.js` form so the commands
@@ -109,9 +109,13 @@ If you would rather not use Compose, build and run the image directly:
 
 ```bash
 docker build -t werknario .
-docker run --rm --env-file .env -v "$PWD/work:/work" \
-  werknario "Summarise the new intake note into the client file"
+docker run --rm --env-file .env -v ./work:/work werknario "Summarise the new intake note into the client file"
 ```
+
+The relative bind mount `./work:/work` works the same on Windows, macOS, and Linux
+(Docker Engine 23+). On an older Docker that needs an absolute source path, spell
+it out per shell: bash/zsh `"$PWD/work:/work"`, Windows PowerShell
+`"${PWD}/work:/work"`, cmd `%cd%/work:/work`.
 
 The Docker path puts the CLI on the image's PATH via the entrypoint, so inside
 the container the command is just the task string. That is the one place the
@@ -119,40 +123,67 @@ short form is correct without `npm link`.
 
 ## Point it at your own Git host and model
 
-Configuration is entirely environment variables. Secrets (tokens, keys) come from
-the environment, never from a command-line flag, so they stay out of your shell
-history. Two examples; the full variable list is in the next section and in
-[configuration.md](configuration.md).
-
-Self-hosted GitLab with Anthropic via Bedrock (the EU default):
+Configuration is entirely environment variables, and the cross-platform way to
+set them is a `.env` file in the working directory. The CLI loads it through
+dotenv, so the same file works on Windows, macOS, and Linux. Copy the template
+and edit it (on Windows use `copy .env.example .env`):
 
 ```bash
-export WERKNARIO_BACKEND=gitlab
-export GITLAB_BASE_URL=https://gitlab.example.com
-export GITLAB_PROJECT_ID=42
-export GITLAB_TOKEN=glpat-xxx          # scope: api
-export LLM_PROVIDER=bedrock
-export LLM_MODEL=eu.anthropic.claude-sonnet-5-...   # your EU inference profile id
-export AWS_REGION=eu-central-1
-export AWS_ACCESS_KEY_ID=...
-export AWS_SECRET_ACCESS_KEY=...
+cp .env.example .env
+```
 
+Secrets (tokens, keys) live in that file, never in a command-line flag, so they
+stay out of your shell history. Two examples follow; the full variable list is in
+the next section and in [configuration.md](configuration.md).
+
+Both examples lead with an EU route, because werknario now enforces EU residency.
+At startup, before it touches any backend or model, the CLI checks the provider
+and model against the EU-residency default and blocks the run if the route is not
+EU or self-hosted. To use a non-EU route anyway, set `WERKNARIO_ALLOW_NON_EU=1`;
+the CLI prints a warning and proceeds, which is only appropriate for data with no
+personal information. See [EU data residency](#eu-data-residency) below.
+
+Self-hosted GitLab with Anthropic via Bedrock in an EU region (the EU default).
+Put this in `.env`:
+
+```
+WERKNARIO_BACKEND=gitlab
+GITLAB_BASE_URL=https://gitlab.example.com
+GITLAB_PROJECT_ID=42
+GITLAB_TOKEN=glpat-xxx                        # scope: api
+LLM_PROVIDER=bedrock
+LLM_MODEL=eu.anthropic.claude-sonnet-5-...    # your EU inference profile id
+AWS_REGION=eu-central-1                        # an eu- region is the EU route; a non-eu region is blocked
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+```
+
+Then run, with no inline environment:
+
+```bash
 node packages/cli/dist/cli.js "Summarise the open issues under docs/" --route --budget 2
 ```
 
-GitHub with an OpenAI-compatible endpoint (Mistral, an EU provider):
+GitHub with an OpenAI-compatible endpoint (Mistral, an EU provider). In `.env`:
+
+```
+WERKNARIO_BACKEND=github
+GITHUB_REPO=my-org/my-docs
+GITHUB_TOKEN=ghp_xxx                          # scope: contents + pull requests
+LLM_PROVIDER=openai-compatible
+LLM_OPENAI_COMPAT_BASE_URL=https://api.mistral.ai/v1
+LLM_OPENAI_COMPAT_API_KEY=...
+LLM_MODEL=mistral-large-3
+```
 
 ```bash
-export WERKNARIO_BACKEND=github
-export GITHUB_REPO=my-org/my-docs
-export GITHUB_TOKEN=ghp_xxx            # scope: contents + pull requests
-export LLM_PROVIDER=openai-compatible
-export LLM_OPENAI_COMPAT_BASE_URL=https://api.mistral.ai/v1
-export LLM_OPENAI_COMPAT_API_KEY=...
-export LLM_MODEL=mistral-large-3
-
 node packages/cli/dist/cli.js "Draft a reply to the latest issue in docs/"
 ```
+
+If you would rather set variables inline than use `.env`, the syntax differs per
+shell: bash/zsh `export FOO=bar`, Windows PowerShell `$env:FOO='bar'`, cmd
+`set "FOO=bar"`. The `.env` file avoids that, which is why it is the path shown
+here.
 
 The Bedrock provider uses `@anthropic-ai/bedrock-sdk`, which is an optional
 dependency. It is not installed by default so that the `mock` and `anthropic`
@@ -254,12 +285,23 @@ regional surcharge over Anthropic's list price. Kimi, DeepSeek, and Qwen are onl
 GDPR-safe self-hosted or through an EU host; their direct endpoints are flagged
 `non-eu` and are not appropriate for personal data without a separate legal basis.
 
-The router enforces this at deployment time, not per request. With `--route` and
-the default `euOnly` policy, `validateRoutingPolicy()` rejects the policy outright
-if any tier resolves to a model that is not `eu` or `self-host`, and names the
-tier and model that failed. So a routing policy that could send personal data to a
-non-EU model is refused before it can ever process a request. The details, the
-registry fields, and how to add a model are in
+werknario enforces this on every run. At CLI startup, before it touches any
+backend or model, `checkRunResidency()` resolves the chosen provider and model to
+`eu`, `self-host`, or `non-eu` and blocks the run with a clear message if the
+route is not EU or self-hosted. The `mock` provider is exempt because it never
+leaves the machine. Bedrock counts as EU only when `AWS_REGION` starts with `eu-`;
+`anthropic` (the direct API) is a US route and is treated as non-EU even for a
+Claude model id; for `openai-compatible` the answer comes from the model's
+registry flag, and an unknown model id is treated as non-EU so the default fails
+safe. Setting `WERKNARIO_ALLOW_NON_EU=1` overrides the block: the CLI prints a
+warning and proceeds, which is only appropriate for data with no personal
+information.
+
+On top of that, with `--route` and the default `euOnly` policy,
+`validateRoutingPolicy()` rejects the whole policy outright if any tier resolves to
+a model that is not `eu` or `self-host`, and names the tier and model that failed.
+So a routing policy that could send personal data to a non-EU model is refused
+before it can process a request. The registry fields and how to add a model are in
 [providers-and-models.md](providers-and-models.md).
 
 ## Running unattended
@@ -332,13 +374,29 @@ browser demo is designed but not stood up yet. The full host setup, the registry
 service, and the marketplace cut-over are documented in
 [DISTRIBUTION.md](DISTRIBUTION.md).
 
-To run the proxy locally for extension development, build the workspace, set
-`PROXY_BEARER_TOKEN` and a provider, then start it:
+To run the proxy locally for extension development, build the workspace, put its
+settings in `.env` (the proxy also loads `.env` through dotenv), then start it.
+Lead with an EU route, such as Bedrock in an `eu-` region. Generate the bearer
+token with Node, so no extra tooling is needed and it works on every platform:
 
 ```bash
-export LLM_PROVIDER=bedrock LLM_MODEL=eu.anthropic.claude-sonnet-5-...
-export AWS_REGION=eu-central-1 AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
-export PROXY_BEARER_TOKEN=$(openssl rand -hex 32)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Put that value and the provider settings in `.env`:
+
+```
+LLM_PROVIDER=bedrock
+LLM_MODEL=eu.anthropic.claude-sonnet-5-...
+AWS_REGION=eu-central-1
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+PROXY_BEARER_TOKEN=<the value printed above>
+```
+
+Then start the server:
+
+```bash
 node packages/proxy/dist/server.js   # listens on PROXY_PORT, default 9109
 ```
 
