@@ -131,12 +131,12 @@ export function classifyError(input: ErrorLike): string {
 const MESSAGES: Record<Code, Record<Locale, { message: string; hint: string }>> = {
   auth: {
     en: {
-      message: "Access to the document store was denied.",
-      hint: "Check the access token; it may be missing or expired.",
+      message: "Access was denied: the credentials were rejected.",
+      hint: "Check the token or key for the service you configured (your Git host or your model provider); it may be wrong or expired.",
     },
     de: {
-      message: "Der Zugriff auf den Dokumentenspeicher wurde verweigert.",
-      hint: "Den Zugriffs-Token prüfen: abgelaufen oder falsch?",
+      message: "Der Zugriff wurde verweigert: die Zugangsdaten wurden abgelehnt.",
+      hint: "Den Token oder Schlüssel des konfigurierten Dienstes prüfen (Git-Host oder Modell-Anbieter): falsch oder abgelaufen?",
     },
   },
   missing_key: {

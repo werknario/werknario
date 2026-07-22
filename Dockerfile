@@ -12,6 +12,10 @@ COPY package.json package-lock.json ./
 COPY tsconfig.base.json ./
 COPY packages ./packages
 COPY registry ./registry
+# Skip the ~300 MB Playwright/Chromium download pulled transitively by the
+# extension's browser-test dependency. The CLI and proxy never need a browser,
+# and skipping it keeps the build working offline / air-gapped.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm ci
 RUN npm run build
 

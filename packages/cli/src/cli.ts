@@ -240,6 +240,15 @@ async function main(): Promise<void> {
   });
   const audit = openAuditLog(config.auditPath, projectPath);
 
+  // Anchor the residency decision in the tamper-evident chain, so an EU run and
+  // an overridden (non-EU) run are both recorded, not just printed to stdout.
+  audit.append("system", "residency", {
+    provider: proxyConfig.provider,
+    region: proxyConfig.bedrock.region ?? null,
+    residency: residency.residency,
+    overridden: residency.overridden,
+  });
+
   let writeGuard: ((path: string) => { allowed: boolean; reason?: string }) | undefined;
   if (existsSync(config.policyPath)) {
     const policy = parsePolicy(JSON.parse(readFileSync(config.policyPath, "utf8")));
@@ -311,6 +320,12 @@ async function main(): Promise<void> {
         agentId: config.agentId,
         locale: config.locale,
       });
+    } else if (config.dryRun) {
+      // No merge request was opened. Say so plainly, so the agent's own
+      // narration (which may optimistically claim it opened one) cannot mislead.
+      process.stdout.write(
+        "\nDry run: nothing was opened or merged. Re-run without --dry-run to act.\n",
+      );
     }
   } finally {
     // Entries were written to disk as they were made (openAuditLog's onAppend),
@@ -325,9 +340,13 @@ async function main(): Promise<void> {
 
 main().catch((err: unknown) => {
   const raw = err instanceof Error ? err.message : String(err);
+  const locale =
+    process.env.WERKNARIO_LOCALE === "de" || process.argv.includes("--de")
+      ? "de"
+      : "en";
   const fe = friendlyError(
     { message: raw, name: err instanceof Error ? err.name : undefined },
-    "en",
+    locale,
   );
   process.stderr.write(`\n${fe.message}\n${fe.hint}\n`);
   if (fe.code === "network" && process.env.LLM_OPENAI_COMPAT_BASE_URL) {
