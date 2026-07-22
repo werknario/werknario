@@ -1,18 +1,27 @@
 # werknario
 
-An agent that does office paperwork the way a good colleague would: it reads your
-documents, drafts a change, and hands it to a human to approve before anything is
-final. Your files live in Git (GitLab or GitHub). Every step, from the first draft
-to the final merge, is written to a tamper-evident log.
+An agent that does office paperwork the way a careful colleague would: it reads
+your documents, drafts a change, and hands it to a human to approve before
+anything is final. Your files live in Git (GitLab or GitHub). An agent here is
+software that carries a task through to the end, not just answers.
 
-The point is not "AI writes your documents." Plenty of tools claim that. The point
-is that every change is a reviewable diff, proposed by a named agent and approved
-by a named human, and that the whole history can be verified rather than trusted.
+The point is not that AI writes your documents. Plenty of tools claim that. The
+point is the mechanism: every change is a reviewable diff, proposed by a named
+agent and approved by a named human, and the whole history can be verified
+rather than trusted.
+
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![Node](https://img.shields.io/badge/node-20%2B-informational)
+![CI](https://img.shields.io/badge/CI-GitLab%20%2B%20GitHub-informational)
+
+The CI badge is guidance, not a live status: the repo ships pipelines for both
+GitLab CI (`.gitlab-ci.yml`) and GitHub Actions (`.github/`). Check your own
+run for the current result.
 
 ## Try it in 30 seconds
 
-No account, no key, no server. This runs the whole flow against an in-memory repo
-with a scripted model, so you can see the shape of it:
+No account, no key, no server. This runs the whole flow against an in-memory
+repo with a scripted model, so you can see the shape of it:
 
 ```bash
 npm install
@@ -21,51 +30,68 @@ LLM_PROVIDER=mock WERKNARIO_BACKEND=mock \
   node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
 ```
 
-You will see the agent read a note, propose a new file, "open" a merge request,
-merge it, and write an audit log:
+Real output. The agent reads a note, proposes a new split-sheet file, opens a
+merge request, merges it, and writes an audit log:
 
 ```
+Note: no policy file at .werknario/policy.json — agent:assistant may write any path. See docs/permissions.md.
+
 werknario · mock/demo (mock)
 Task: Draft the split sheet from the session note
 
+Ich lese zuerst die Notiz.
   · read_file
   · propose_edit
+
+  proposal (new file): mock-substrate-musik/vertraege/split-sheet_landgang_ENTWURF.md
+    + # Split Sheet — Landgang (ENTWURF)
+    + …
   · create_merge_request
+
+Entwurf vorgelegt und Merge Request geöffnet. Bitte die offenen Anteile prüfen.
+
 Merge request opened: mock://merge-request/1
   Merged !1.
 
 Audit: 8 entries at .werknario/audit.jsonl — chain verified.
 ```
 
-With Docker instead:
+The bundled demo substrate is a German music-label example, so the agent
+narrates in German and follows the substrate's language. Point it at your own
+repo and the language follows your documents.
+
+With Docker instead (the image puts `werknario` on PATH):
 
 ```bash
 docker compose run --rm demo
 ```
 
-## What runs today, and what does not
+Optional, once: `cd packages/cli && npm link` puts `werknario` on your PATH so
+you can drop the `node packages/cli/dist/cli.js` prefix. Everything below uses
+the source form so it works without that step.
 
-This project keeps an honest line between what is built and what is designed.
+## What runs today, and what does not
 
 | Runs today (built and tested) | Designed, not built yet |
 |---|---|
-| CLI: read repo → propose → human approves → open merge/pull request → conflict check → human approves merge → merge → revert | VS Code Web IDE extension distribution + a hosted demo |
-| Backends: GitLab, GitHub, and an in-memory mock | Supabase operative store, Zitadel identity, Cognee memory |
-| Providers: mock, Anthropic, AWS Bedrock (EU), and one OpenAI-compatible provider for Mistral / Kimi / DeepSeek / Qwen / self-hosted models | Sigstore commit signing |
-| Model registry with prices + a data-residency flag, a deterministic model router, a token budget, prompt caching | A full CI-verify-and-auto-rollback loop |
-| Citation contract: the agent may only claim what it read, with file and line; a fabricated citation blocks the merge request | |
-| Permission policy (who may write which paths, who may approve) | |
-| Tamper-evident, hash-chained audit log | |
+| CLI, full flow: read repo → propose → human approves → open merge/pull request → conflict check → human approves merge → merge → revert | Live **hosted** browser demo — the extension, proxy, and registry are built and tested; what's missing is a DNS record and a Caddy entry on the host so a real GitLab Web IDE can reach them ([docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)) |
+| Backends: GitLab, GitHub, and an in-memory mock | Sigstore commit signing (the log is a hash chain today, not a signature) |
+| Providers: mock, Anthropic, AWS Bedrock (EU), and one OpenAI-compatible provider for Mistral / Kimi / DeepSeek / Qwen / self-hosted models | A full CI-verify-and-auto-rollback loop (the conflict check runs; `--verify-cmd` and `rollback` exist; nothing yet reverts automatically off a post-merge CI signal) |
+| Model registry with prices and a data-residency flag; deterministic model router; token budget; prompt caching | A vector index for retrieval, held behind a measured Recall@k threshold |
+| Grounding gate: a citation to a file or line the agent never read hard-blocks the merge request; the number-coverage check is advisory | |
+| Path permission policy (which agent may write which path globs) | |
+| Tamper-evident, hash-chained audit log, plus offline `verify` | |
+| The VS Code Web IDE extension, the LLM proxy server, and the gallery-proxy registry service | |
 
-The offline mock path is proven end to end. The GitLab and GitHub paths are covered
-by unit tests against their APIs; a live run needs your own repo and token.
-Verification beyond the conflict check is a pluggable hook, and automatic
-post-merge rollback needs a CI signal, so it is offered as an explicit action
-rather than pretended. See [docs/architecture-and-status.md](docs/architecture-and-status.md).
+The offline mock path is proven end to end. The GitLab and GitHub paths are
+covered by the test suite against their APIs; a live run needs your own repo and
+token. See [docs/architecture-and-status.md](docs/architecture-and-status.md)
+for the full breakdown.
 
 ## Use it for real
 
-Point it at a repo and a model, then give it a task in plain language.
+Point it at a repo and a model, then give it a task in plain language. It shows
+you each diff; you approve each write in the terminal.
 
 ```bash
 # GitLab
@@ -92,78 +118,100 @@ export LLM_MODEL=mistral-large-3
 node packages/cli/dist/cli.js "Draft a reply to the latest issue in docs/"
 ```
 
-The agent proposes and shows you the diff; you approve each write in the terminal.
-Add `--yes` to run it unattended, `--dry-run` to preview without opening anything,
-`--route` to let it pick a cheaper model for simple steps, and `--budget 5` to
-stop it once a run costs five dollars. More task examples in
-[docs/recipes.md](docs/recipes.md); full reference in
-[docs/configuration.md](docs/configuration.md).
+Add `--yes` to run unattended, `--dry-run` to preview without opening anything,
+`--route` to let it pick a cheaper model for simple steps, `--budget 5` to stop
+once a run costs five dollars, and `--verify-cmd <cmd>` to run your own check
+before a merge. More tasks in [docs/recipes.md](docs/recipes.md); full reference
+in [docs/configuration.md](docs/configuration.md). New here? Start with
+[docs/getting-started.md](docs/getting-started.md).
 
-## The audit trail
+## Why not just point Aider or OpenHands at a docs repo?
 
-Every run appends to `.werknario/audit.jsonl`. Each entry records who acted (a
-named agent or a named human), what they did, and the details, and it carries the
-hash of the entry before it. Change, delete, reorder, or insert an entry after the
-fact and the chain stops verifying. The tool checks the chain every time it starts
-and refuses to append to a log that was tampered with.
+A coding agent will happily edit files and open a pull request. The difference
+is what stands between the model and a merged change, and whether you can check
+it afterwards instead of trusting it.
 
-```json
-{"seq":2,"actor":"human:anna","action":"approve","detail":{"tool":"create_merge_request"},"prevHash":"7940…","hash":"c0c7…"}
-{"seq":3,"actor":"agent:assistant","action":"create_merge_request","detail":{"iid":1,"title":"Split Sheet"},"prevHash":"c0c7…","hash":"ef18…"}
-```
-
-Check a log at any time, without a full run:
-
-```bash
-werknario verify .werknario/audit.jsonl   # exits non-zero if the chain is broken
-```
-
-Each merge request also carries the chain head in its description, so the git
-server anchors the log against being shortened after the fact. This is the
-difference between "an agent changed this document and a human approved it" as a
-claim and as something you can check. More in
-[docs/audit-and-trust.md](docs/audit-and-trust.md).
-
-## Data residency and models
-
-Because it runs on documents that may contain personal data, the model registry
-carries a data-residency flag for each model: `eu`, `self-host`, or `non-eu`. The
-router refuses a policy that would send personal data to a model without EU
-residency. Anthropic via AWS Bedrock EU and Mistral (an EU company, Apache-2.0
-weights) are the straightforward EU paths; Kimi, DeepSeek, and Qwen are only
-GDPR-safe self-hosted or through an EU host. See
-[docs/providers-and-models.md](docs/providers-and-models.md).
+- **A citation gate runs before the merge request exists.** If the agent claims
+  something and cites a file or line it never read this session, the proposal is
+  blocked before anything is opened. A generic coding agent has no such gate;
+  a confident fabrication becomes a diff.
+- **A path permission policy decides which paths the agent may write.**
+  `.werknario/policy.json` scopes an agent to path globs, so a task about one
+  folder cannot rewrite the whole repo.
+- **The approver is a human reading a diff, not code.** Every write and the
+  merge itself pause for a human `yes` in the terminal, so a non-developer can
+  hold the gate. The policy also carries a named-approver role; that role is
+  defined and tested but not yet enforced, so read it as design, not a control.
+- **The log is offline-verifiable.** Every step is a hash-chained entry;
+  `node packages/cli/dist/cli.js verify .werknario/audit.jsonl` exits non-zero
+  if the chain breaks. It is a hash chain, not a signature: it detects edits,
+  reordering, and insertions after the fact, and the chain head is stamped into
+  the merge request so the Git server anchors it against tail truncation.
+- **The router refuses to send personal data to a non-EU model.** Each model
+  carries a residency flag (`eu` / `self-host` / `non-eu`), and the router will
+  not run a policy that would send personal data to a model without EU
+  residency. Anything unrecognised is treated as `non-eu` by default, so the
+  failure is safe.
 
 ## Install
 
-- **Docker**: `docker build -t werknario .` then
+- **Docker**: `docker build -t werknario .`, then
   `docker run --rm -e LLM_PROVIDER=mock -e WERKNARIO_BACKEND=mock werknario "your task" --yes`.
-  Configuration via `.env` (copy `.env.example`). See [docs/configuration.md](docs/configuration.md).
-- **From source**: Node 20+, `npm install && npm run build`. The CLI is a single
+  Configuration via `.env` (copy `.env.example`).
+- **From source**: Node 20+, `npm install && npm run build`. The CLI is a
   bundled file at `packages/cli/dist/cli.js`.
+
+Self-hosting the whole stack is documented in
+[docs/self-hosting.md](docs/self-hosting.md).
 
 ## How it is put together
 
-A small TypeScript monorepo. Everything the agent can do is behind a narrow
+A small TypeScript monorepo. Everything the agent can do sits behind a narrow
 interface, so a backend or a model is a swap, not a rewrite.
 
 | Package | What it is |
 |---|---|
-| `packages/shared` | The pure core: agent loop, tool schemas, the citation contract, the token account, the model router, the permission model, the audit log. No I/O, heavily unit-tested. |
+| `packages/shared` | The pure core: agent loop, tool schemas, grounding gate, path guard, token ledger, model registry, deterministic router, permission model, audit log. No I/O, heavily tested. |
 | `packages/gitlab-client` | GitLab REST backend (read, propose, branch, commit, merge request, merge, revert). |
 | `packages/github-client` | GitHub REST backend, same shape, atomic multi-file commits via the Git Data API. |
-| `packages/proxy` | Model gateway: the providers (mock / anthropic / bedrock / openai-compatible) and the config loader. |
-| `packages/cli` | The `werknario` command: wires a backend, a provider, the audit log, and terminal approvals. |
-| `packages/extension` | The VS Code Web IDE extension (a second surface, for GitLab's browser IDE). |
+| `packages/proxy` | LLM gateway: the providers (mock / anthropic / bedrock / openai-compatible) and the config loader. |
+| `packages/cli` | The `werknario` command: wires a backend, a provider, the audit log, a policy, and terminal approvals. |
+| `packages/extension` | The VS Code Web IDE extension, a second surface for GitLab's browser IDE. |
+| `registry/` | Gallery-proxy so a self-hosted GitLab marketplace can carry the extension. |
 
-Details in [docs/architecture-and-status.md](docs/architecture-and-status.md).
+## Documentation
 
-## Contributing
+**Start here**
+[getting-started](docs/getting-started.md) ·
+[DEMO](docs/DEMO.md)
 
-Contributions are welcome. The build is `npm install`, tests are `npm test`, and
-new code is written test-first with tests in each package's `test/`. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+**Run it**
+[configuration](docs/configuration.md) ·
+[backends](docs/backends.md) ·
+[providers and models](docs/providers-and-models.md) ·
+[recipes](docs/recipes.md) ·
+[self-hosting](docs/self-hosting.md)
+
+**How it works and why to trust it**
+[architecture and status](docs/architecture-and-status.md) ·
+[audit and trust](docs/audit-and-trust.md) ·
+[grounding](docs/grounding.md) ·
+[permissions](docs/permissions.md) ·
+[LLM communication](docs/llm-communication.md)
+
+**Ship and troubleshoot**
+[distribution](docs/DISTRIBUTION.md) ·
+[troubleshooting](docs/troubleshooting.md) ·
+[FAQ](docs/faq.md)
+
+**Project**
+[CONTRIBUTING](CONTRIBUTING.md) ·
+[GOVERNANCE](GOVERNANCE.md) ·
+[CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) ·
+[SECURITY](SECURITY.md) ·
+[ADAPTERS](ADAPTERS.md)
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE). Security and conduct contact:
+jonah@grosshanten.com.

@@ -1,69 +1,104 @@
-# Demo & run guide
+# The demo, in detail
 
-The flagship: in the GitLab Web IDE, ask the agent "entwirf aus der Session-Notiz
-ein Split Sheet". It reads the note, writes a draft (shown as a diff), you approve,
-it opens a merge request. CI validates. No terminal.
+Start with [getting-started.md](getting-started.md). It walks you from a fresh
+clone to a run you can trust and is the entry point for everything here. This page
+is the companion to it: what the local offline demo actually does, stage by stage,
+so the output on your screen makes sense.
 
-## Run the tests
-
-```bash
-npm install
-npm run test          # 71 unit tests: shared, gitlab-client, proxy, extension
-npm run typecheck
-(cd e2e && npx vitest run)   # flagship pipeline; live-GitLab test skips without one
-```
-
-## See the whole pipeline with a real Claude model (~30s)
-
-Needs a Claude API token in the environment.
+The demo is the 30-second offline run. It needs no API key and no server. The
+provider is a scripted mock and the backend is an in-memory repository, so nothing
+real is read or written:
 
 ```bash
-cd e2e
-CLAUDE_API_TOKEN=sk-ant-... RUN_REAL_LLM=1 npx vitest run flagship-real-llm
+LLM_PROVIDER=mock WERKNARIO_BACKEND=mock \
+  node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
 ```
 
-This starts the proxy (anthropic provider) in-process and drives the real agent
-loop against an in-memory GitLab. The model actually reads the note, drafts the
-split sheet, commits it, and opens a merge request. Watch it call the tools.
+`--yes` approves each write automatically so the run finishes unattended. Without
+it the CLI stops before every team-visible step and asks you first.
 
-## Run the agent against a REAL GitLab
+## What happens, stage by stage
 
-The deterministic tests simulate GitLab. To hit a real instance:
+The scripted agent moves through four stages. You can watch each one in the output.
 
-1. Start the proxy (mock brain is fine for a scripted demo; anthropic/bedrock for a real one):
-   ```bash
-   cd packages/proxy
-   LLM_PROVIDER=anthropic CLAUDE_API_TOKEN=sk-ant-... \
-   PROXY_BEARER_TOKEN=<random> PROXY_PORT=9109 npm run dev
-   ```
-2. Point the live e2e at a reachable GitLab (native-arm64 image, or the real instance):
-   ```bash
-   # after infra/local-gitlab/boot-all.sh has minted a token, OR set the token yourself
-   cd e2e && GITLAB_LOCAL_URL=https://gitlab.xconcapps.de npx vitest run flagship-live
-   ```
-   It seeds a throwaway project with the session note and asserts a real MR appears.
+1. **Policy notice.** The first line reports that no permission file is present, so
+   `agent:assistant` may write any path. The demo ships without a
+   `.werknario/policy.json` on purpose; a real setup adds one. See
+   [permissions.md](permissions.md).
+2. **read_file.** The agent reads the bundled session note at
+   `mock-substrate-musik/vertraege/session-notiz_landgang_2026-05-30.md`. This is
+   the input it is allowed to ground its draft in.
+3. **propose_edit.** It proposes a new file,
+   `mock-substrate-musik/vertraege/split-sheet_landgang_ENTWURF.md`, shown to you as
+   a diff before anything is committed. The share it cannot derive from the note is
+   left as `ANTEIL OFFEN` rather than invented. The agent may only write what it can
+   ground in what it read; the grounding gate is covered in
+   [grounding.md](grounding.md).
+4. **create_merge_request, then merge.** It opens a merge request against the
+   in-memory backend (`mock://merge-request/1`) and, because `--yes` approved it,
+   merges it. Every step is appended to the audit log as it goes.
 
-## Run the extension in the actual Web IDE
+The tail of the run looks like this:
 
-1. Distribute it: the full recipe lives in [`DISTRIBUTION.md`](DISTRIBUTION.md) —
-   a gallery-proxy registry (`registry/`) serves our extension and passes
-   everything else through to open-vsx.org; the instance marketplace points at it
-   via `preset=custom`. Deploys automatically from main (`deploy:registry`).
-2. In the Web IDE, open Settings and fill: `werknario.proxyUrl`, `werknario.proxyToken`,
-   `werknario.gitlabBaseUrl`, `werknario.projectId`. The GitLab token comes from the
-   Web IDE session automatically (Spike A) — no PAT needed unless the session path fails.
-3. Run "Fleetlicht KI: Chat öffnen", type the flagship prompt, approve the MR.
+```
+Merge request opened: mock://merge-request/1
+  Merged !1.
 
-## Local GitLab note
+Audit: 8 entries at .werknario/audit.jsonl — chain verified.
+```
 
-`infra/local-gitlab/` boots GitLab CE 18.0.2. On Apple Silicon the pinned image is
-amd64-only and crawls under emulation — use an image with an arm64 manifest, or run
-against the real instance. The compose file binds to loopback only.
+## Why the agent speaks German
 
-## The keynote beat
+The bundled demo substrate is a German-language music-label example, so the agent
+narrates in German (`Ich lese zuerst die Notiz`, and so on). That is the demo data
+talking, not a fixed language setting. The agent follows the substrate's language,
+so pointed at your own English repository it works in English. Use the demo to see
+the shape of the flow; use your own repo to see it in your language.
 
-Show the same task twice: the old way (someone hand-writes the split sheet, emails
-it around, chases the missing share) and the new way (ask the agent, it drafts from
-the real note, you approve, the MR carries the audit trail, the open share is marked
-`ANTEIL OFFEN` because the agent doesn't invent it). The point is not that the AI is
-clever — it's that the proposal is visible, approvable, and logged.
+## The audit output
+
+The run appended to `.werknario/audit.jsonl` in your working directory: one JSON
+object per line, append-only, each line carrying the hash of the line before it and
+its own hash computed over that link. That is the chain the final line reports as
+verified.
+
+You can check the chain again without doing another run:
+
+```bash
+node packages/cli/dist/cli.js verify .werknario/audit.jsonl
+```
+
+It exits 0 on a good chain and non-zero if the chain breaks, so it drops straight
+into a script or a CI job. Edit, delete, or reorder a line in the middle of the
+file and `verify` reports the first entry that no longer checks out.
+
+Two honest limits. This is a hash chain, not a signature: it is tamper-evident, not
+something only the original actor could have produced. And `verify` cannot detect
+tail truncation on its own, because a log with its last entries chopped off is still
+a valid chain from the start. The mitigation is an external anchor: when the CLI
+opens a merge request it stamps the current chain head into the request
+description, so the git server holds a reference the local file cannot rewrite. The
+full account is in [audit-and-trust.md](audit-and-trust.md).
+
+## The same demo under Docker
+
+If you have Docker and did not install Node, the identical run is:
+
+```bash
+docker compose run --rm demo
+```
+
+## After the demo
+
+The offline demo proves the flow end to end against nothing real. To point the same
+flow at your own repository and a real model, follow Step 4 of
+[getting-started.md](getting-started.md). From there:
+
+- [providers-and-models.md](providers-and-models.md) — the model registry, the
+  data-residency flag, and which providers are wired up.
+- [backends.md](backends.md) — GitLab, GitHub, and the in-memory mock, and the token
+  scopes each needs.
+- [self-hosting.md](self-hosting.md) — running werknario on your own GitLab and
+  standing up the model proxy the browser extension talks to.
+- [architecture-and-status.md](architecture-and-status.md) — what is built and
+  tested versus what is designed and not built yet.
