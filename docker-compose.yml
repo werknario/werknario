@@ -1,0 +1,31 @@
+# Two ways to run the werknario CLI in Docker.
+#
+#   Offline demo (no keys, no server):
+#     docker compose run --rm demo
+#
+#   Real run against your own repo: copy .env.example to .env, fill it in, then:
+#     docker compose run --rm agent "Draft the split sheet from the session note"
+
+services:
+  # Zero-setup demo: mock model + in-memory repo. Proves the whole flow end to
+  # end (propose -> approve -> open -> merge) and writes an audit log to ./work.
+  demo:
+    build: .
+    environment:
+      LLM_PROVIDER: mock
+      WERKNARIO_BACKEND: mock
+      WERKNARIO_AUDIT: /work/audit.jsonl
+    volumes:
+      - ./work:/work
+    command: ["Draft the split sheet from the session note", "--yes"]
+
+  # Real run: configuration comes from .env (see .env.example). Pass the task as
+  # the command: `docker compose run --rm agent "your task"`.
+  agent:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./work:/work
+    stdin_open: true
+    tty: true

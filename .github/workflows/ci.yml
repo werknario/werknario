@@ -1,0 +1,25 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Offline smoke test (mock model + mock backend)
+        run: |
+          LLM_PROVIDER=mock WERKNARIO_BACKEND=mock WERKNARIO_AUDIT=/tmp/audit.jsonl \
+            node packages/cli/dist/cli.js "Draft the split sheet from the session note" --yes
+          grep -q '"action":"merge"' /tmp/audit.jsonl

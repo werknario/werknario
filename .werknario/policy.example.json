@@ -1,0 +1,16 @@
+{
+  "_comment": "Copy to .werknario/policy.json to enable. Optional: with no policy, all writes are allowed. Path patterns use * (within a segment) and ** (across segments).",
+  "agents": {
+    "hr-bot": {
+      "allow": ["personal/**", "onboarding/**"],
+      "deny": ["personal/gehalt/**"]
+    },
+    "audit-bot": {
+      "deny": ["**"]
+    }
+  },
+  "approvers": {
+    "vertraege/**": ["anna", "chef"],
+    "**": ["anna"]
+  }
+}

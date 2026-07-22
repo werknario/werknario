@@ -2,13 +2,13 @@
   "name": "werknario-webide-agent-workspace",
   "private": true,
   "version": "0.1.0",
-  "description": "Web-native KI agent for the GitLab Web IDE: reads the document substrate, proposes edits as a diff, opens a merge request. No terminal. CI is its hand.",
+  "description": "werknario — an agent that proposes document changes as reviewable, auditable diffs. Git (GitLab or GitHub) is the document store, a human approves, and every step lands in a tamper-evident audit log. CLI, VS Code Web IDE extension, GDPR-aware multi-model.",
   "workspaces": [
     "packages/*",
     "registry"
   ],
   "scripts": {
-    "build": "npm run build -w @werknario/shared && npm run build -w @werknario/gitlab-client && npm run build -w @werknario/proxy && npm run build -w werknario-webide-agent",
+    "build": "npm run build -w @werknario/shared && npm run build -w @werknario/gitlab-client && npm run build -w @werknario/proxy && npm run build -w @werknario/cli && npm run build -w werknario-webide-agent",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "clean": "rm -rf packages/*/dist packages/*/out node_modules/.cache"

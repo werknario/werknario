@@ -26,3 +26,9 @@ infra/local-gitlab/.local-admin-token
 
 # logs
 *.log
+
+# runtime data: the agent's audit log and the docker-compose work volume
+.werknario/audit.jsonl
+work/
+# keep the example policy checked in
+!.werknario/policy.example.json
