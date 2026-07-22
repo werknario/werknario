@@ -12,3 +12,4 @@ export * from "./friendlyError.js";
 export * from "./audit.js";
 export * from "./policy.js";
 export * from "./diff.js";
+export * from "./memory.js";

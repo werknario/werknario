@@ -239,6 +239,42 @@ function textWithUsage(
   };
 }
 
+describe("runAgentLoop — no-progress guard", () => {
+  it("stops with 'no_progress' when the same error repeats, well before max_turns", async () => {
+    const call = toolCall("read_file", { path: "a.md" }, "r");
+    const callLlm = scriptedCaller([call, call, call, call, call]);
+    const executeTool = vi.fn(async () => ({
+      content: "always the same error",
+      isError: true,
+    }));
+    const res = await runAgentLoop([{ role: "user", content: "go" }], {
+      ...baseOpts,
+      callLlm,
+      executeTool,
+      stallLimit: 3,
+    });
+    expect(res.stopped).toBe("no_progress");
+    expect(res.turns).toBe(3);
+  });
+
+  it("does not stall when the agent makes progress (different results each turn)", async () => {
+    const callLlm = scriptedCaller([
+      toolCall("read_file", { path: "a.md" }, "r1"),
+      toolCall("read_file", { path: "b.md" }, "r2"),
+      text("done"),
+    ]);
+    let n = 0;
+    const executeTool = vi.fn(async () => ({ content: `result ${n++}` }));
+    const res = await runAgentLoop([{ role: "user", content: "go" }], {
+      ...baseOpts,
+      callLlm,
+      executeTool,
+      stallLimit: 2,
+    });
+    expect(res.stopped).toBe("end_turn");
+  });
+});
+
 describe("runAgentLoop — token accounting and budget gate", () => {
   it("records usage into the running totals and fires onUsage", async () => {
     const callLlm = scriptedCaller([

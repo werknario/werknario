@@ -62,7 +62,7 @@ export interface RunTaskDeps {
 export interface RunTaskResult {
   finalText: string;
   usage: TokenTotals;
-  stopped: "end_turn" | "max_turns" | "budget";
+  stopped: "end_turn" | "max_turns" | "budget" | "no_progress";
   /** Set if the agent opened a merge request during the run. */
   mr?: { iid: number; webUrl: string; sourceBranch: string };
 }

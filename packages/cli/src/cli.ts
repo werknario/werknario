@@ -257,7 +257,13 @@ async function main(): Promise<void> {
     process.stdout.write(
       `\n— ${u.calls} model call(s), ${(u.inputTokens + u.outputTokens).toLocaleString("en-US")} tokens` +
         (u.costUsd > 0 ? `, ~$${u.costUsd.toFixed(4)}` : "") +
-        (result.stopped === "budget" ? " (stopped at budget)" : "") +
+        (result.stopped === "budget"
+          ? " (stopped at budget)"
+          : result.stopped === "max_turns"
+            ? " (stopped at the turn limit)"
+            : result.stopped === "no_progress"
+              ? " (stopped: the agent kept hitting the same error — check the last message)"
+              : "") +
         "\n",
     );
 

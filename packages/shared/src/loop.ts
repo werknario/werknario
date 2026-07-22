@@ -69,18 +69,25 @@ export interface AgentLoopOptions {
   budgetGate?: BudgetGate;
   /** Optional per-turn model routing. Absent = always use `opts.model` (default). */
   selectModelForTurn?: SelectModelForTurn;
+  /**
+   * No-progress guard: if the tools return the exact same error(s) this many
+   * turns in a row, the agent is repairing in circles — stop honestly instead of
+   * burning the rest of the turn/cost budget. Default 3 (two retries, then stop).
+   */
+  stallLimit?: number;
 }
 
 export interface AgentLoopResult {
   messages: Message[];
   finalText: string;
   turns: number;
-  stopped: "end_turn" | "max_turns" | "budget";
+  stopped: "end_turn" | "max_turns" | "budget" | "no_progress";
   /** Accumulated token usage and cost across the whole run. */
   usage: TokenTotals;
 }
 
 const DEFAULT_MAX_TURNS = 12;
+const DEFAULT_STALL_LIMIT = 3;
 
 function errorMessage(e: unknown): string {
   if (e instanceof Error) return e.message;
@@ -115,10 +122,15 @@ export async function runAgentLoop(
   opts: AgentLoopOptions,
 ): Promise<AgentLoopResult> {
   const maxTurns = opts.maxTurns ?? DEFAULT_MAX_TURNS;
+  const stallLimit = opts.stallLimit ?? DEFAULT_STALL_LIMIT;
   const messages: Message[] = [...initialMessages];
   const ledger = opts.ledger ?? new TokenLedger();
   let turns = 0;
   let lastText = "";
+  // No-progress detection: the error signature of the previous turn and how many
+  // turns in a row it has repeated identically.
+  let lastErrorSig = "";
+  let stallCount = 0;
 
   while (true) {
     turns += 1;
@@ -214,5 +226,29 @@ export async function runAgentLoop(
     }
 
     messages.push({ role: "user", content: toolResults });
+
+    // No-progress guard: if this turn's errors are identical to the last turn's,
+    // the agent is stuck repairing the same thing. Reset on any progress (no
+    // errors, or different errors). Stop honestly once it repeats stallLimit times.
+    const errorSig = toolResults
+      .filter((r) => r.is_error)
+      .map((r) => r.content)
+      .sort()
+      .join(" ");
+    if (errorSig && errorSig === lastErrorSig) {
+      stallCount += 1;
+    } else {
+      lastErrorSig = errorSig;
+      stallCount = errorSig ? 1 : 0;
+    }
+    if (errorSig && stallCount >= stallLimit) {
+      return {
+        messages,
+        finalText: lastText,
+        turns,
+        stopped: "no_progress",
+        usage: ledger.totals(),
+      };
+    }
   }
 }

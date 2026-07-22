@@ -247,6 +247,11 @@ class ChatPanel {
           type: "error",
           text: "Die KI hat das Rundenlimit erreicht und aufgehört.",
         });
+      } else if (result.stopped === "no_progress") {
+        this.post({
+          type: "error",
+          text: "Die KI ist beim selben Fehler hängen geblieben und hat aufgehört. Bitte die letzte Meldung prüfen.",
+        });
       }
       await this.recordAudit(AGENT_ACTOR, "run_finished", {
         stopped: result.stopped,
