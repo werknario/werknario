@@ -94,10 +94,13 @@ caching is wired for the Anthropic and Bedrock providers. See
 ### Permissions and grounding
 
 A permission policy (`.werknario/policy.json`) controls which agent may write
-which path globs, defaulting to permissive. See [`permissions.md`](./permissions.md),
-including the caveat that the `approvers` field is defined and tested but not yet
-enforced by anything. The grounding contract, described in the flow above, limits
-the agent to what it read this session.
+which path globs, defaulting to permissive. See [`permissions.md`](./permissions.md).
+The CLI enforces the `approvers` list against the authenticated token identity
+(`GET /user`): `closeLoop` runs `checkApprover` before the merge prompt, records a
+`merge_denied` audit entry, and `--yes` does not bypass it. Cross-surface
+enforcement (the extension) and org-wide identity binding (SSO) remain the roadmap
+step. The grounding contract, described in the flow above, limits the agent to what
+it read this session.
 
 ### The audit log
 

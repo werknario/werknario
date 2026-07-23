@@ -1,0 +1,18 @@
+# GitHub reads this file to configure the issue chooser. The two contact_links
+# below need the GitHub mirror's owner/repo slug. Replace OWNER/REPO with the
+# published GitHub path before the mirror goes live; on GitLab this file is
+# inert. See SECURITY.md for the vulnerability flow it points at.
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea (Discussions)
+    url: https://github.com/OWNER/REPO/discussions
+    about: >-
+      Ask a question, propose an adapter, or talk through a change before you
+      open an issue. Anything that is not a concrete bug or a specific feature
+      request starts better here.
+  - name: Report a security vulnerability
+    url: https://github.com/OWNER/REPO/security/advisories/new
+    about: >-
+      Do not file a public issue for a security problem. Use GitHub's private
+      report flow, or email the maintainer as described in SECURITY.md. Include
+      how to reproduce it and the impact you see.
