@@ -197,4 +197,34 @@ describe("checkRunResidency (the run-path guard)", () => {
     expect(d.ok).toBe(true);
     expect(d.overridden).toBe(true);
   });
+
+  it("pins the endpoint edge cases (region case/whitespace, unknown provider, private self-host)", () => {
+    // Bedrock region matching is prefix- and case-insensitive but whitespace-strict.
+    expect(
+      checkRunResidency("bedrock", "claude-sonnet-5", {
+        region: "EU-CENTRAL-1",
+        allowNonEu: false,
+      }).ok,
+    ).toBe(true);
+    expect(
+      checkRunResidency("bedrock", "claude-sonnet-5", {
+        region: " eu-central-1",
+        allowNonEu: false,
+      }).ok,
+    ).toBe(false);
+    expect(
+      checkRunResidency("bedrock", "claude-sonnet-5", { allowNonEu: false }).ok,
+    ).toBe(false);
+    // An unknown provider fails safe to blocked.
+    expect(
+      checkRunResidency("some-new-provider", "x", { allowNonEu: false }).ok,
+    ).toBe(false);
+    // A self-host model on an RFC1918 endpoint is allowed.
+    const rfc = checkRunResidency("openai-compatible", "kimi-k2-instruct-selfhost", {
+      baseUrl: "http://10.0.0.5:8000/v1",
+      allowNonEu: false,
+    });
+    expect(rfc.ok).toBe(true);
+    expect(rfc.residency).toBe("self-host");
+  });
 });
