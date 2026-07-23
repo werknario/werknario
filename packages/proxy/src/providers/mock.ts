@@ -22,6 +22,12 @@ const SPLIT_SHEET_CONTENT =
   "|---|---|---|\n" +
   "| … | … | ANTEIL OFFEN |\n";
 
+// Second scripted path for the launch demo: at the merge-request step the agent
+// cites a file it never read, so the grounding gate refuses the merge request
+// before a human sees it. Triggered by a marker phrase in the task text so the
+// happy path stays the default. See docs/launch/demo-script.md.
+const FABRICATED_DEMO_RE = /fabricated citation|erfundenes zitat|erfundener beleg/i;
+
 function blocksOf(message: Message): ContentBlock[] {
   return typeof message.content === "string"
     ? [{ type: "text", text: message.content }]
@@ -41,6 +47,11 @@ function lastUserText(messages: Message[]): string {
     if (text !== "") return text;
   }
   return "";
+}
+
+/** Whether the task asks for the fabricated-citation demo variant. */
+function wantsFabricatedDemo(messages: Message[]): boolean {
+  return FABRICATED_DEMO_RE.test(lastUserText(messages));
 }
 
 /** Last whitespace-separated token in `text` that looks like a file path. */
@@ -116,6 +127,7 @@ export function createMockProvider(): Provider {
       const stage = nextStage(req.messages);
       const n = toolUseCount(req.messages) + 1;
       const usage = mockUsage(req.messages);
+      const fabricated = wantsFabricatedDemo(req.messages);
 
       if (stage === "read_file") {
         const path = extractPath(lastUserText(req.messages));
@@ -165,8 +177,10 @@ export function createMockProvider(): Provider {
               name: "create_merge_request",
               input: {
                 title: "Split Sheet Landgang (Entwurf)",
-                description:
-                  "Automatisch aus session-notiz_landgang_2026-05-30.md abgeleitet. Bitte Anteile prüfen.",
+                description: fabricated
+                  ? "Automatisch aus session-notiz_landgang_2026-05-30.md abgeleitet. " +
+                    "Beteiligung 50/50 laut [Beleg: vertraege/fees.csv:L12]. Bitte Anteile prüfen."
+                  : "Automatisch aus session-notiz_landgang_2026-05-30.md abgeleitet. Bitte Anteile prüfen.",
                 source_branch: "split/landgang-entwurf-mock",
               },
             },
@@ -181,7 +195,11 @@ export function createMockProvider(): Provider {
         content: [
           {
             type: "text",
-            text: "Entwurf vorgelegt und Merge Request geöffnet. Bitte die offenen Anteile prüfen.",
+            text: fabricated
+              ? "MR refused: fabricated citation. Die Beschreibung belegte vertraege/fees.csv, " +
+                "aber diese Datei wurde in dieser Sitzung nie gelesen. Das Grounding-Gate hat den " +
+                "Merge Request abgewiesen, bevor ein Mensch ihn gesehen hat."
+              : "Entwurf vorgelegt und Merge Request geöffnet. Bitte die offenen Anteile prüfen.",
           },
         ],
         stop_reason: "end_turn",

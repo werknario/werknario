@@ -20,6 +20,11 @@ This document covers three things:
 All commands run against the in-memory backend and the scripted mock provider.
 No API key, no server, no network.
 
+Status (2026-07-23): the second mock path is built and unit-tested
+(`packages/proxy/test/mock-provider.test.ts`). Run the fabricated-citation demo
+with `npm run demo:blocked`, or the explicit form in section 1. Section 2 below
+describes the shipped behaviour, not a to-do.
+
 ---
 
 ## 1. Unified invocation
