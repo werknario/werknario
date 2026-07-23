@@ -123,50 +123,43 @@ defaults to `agent:assistant` and comes from `--agent` or
 `WERKNARIO_AGENT_ID`; `WERKNARIO_AGENT_ID=agent:hr-bot` matches a policy key
 `"hr-bot"`, not `"agent:hr-bot"`. Write policy keys as the bare id.
 
-## `approvers`: defined and tested, not enforced yet
+## `approvers`: enforced in the CLI, bound to the backend identity
 
-Be precise about this: `approversFor(policy, path)` exists, is unit-tested,
-and correctly resolves the most-specific-glob-wins list of approvers for a
-path. But nothing in the CLI or the extension currently calls it to gate an
-approval. Today, approving a change means whoever runs the CLI interactively
-confirms the prompt (or passes `--yes` for an unattended run). The human id
-recorded alongside that approval defaults to `human:you` and comes from
-`--human` or `WERKNARIO_HUMAN`. It is a self-declared label written into the
-audit log, not an authenticated identity, and there is no check that it
-appears in the `approvers` list for the path being changed.
+`approversFor(policy, path)` resolves the most-specific-glob-wins list of
+approvers for a path, and the CLI now enforces it. Before the merge prompt, it
+checks the acting human against the `approvers` rules for every path the change
+touched. If a touched path names approvers and the human is not on that list,
+the merge is blocked, a `merge_denied` entry is written to the audit log, and
+`--yes` does not bypass it.
 
-That gap is the reason the gate is not enforced: a real approver check needs
-an authenticated human identity rather than a self-declared one, which this
-release does not have. Treat `approvers` as a schema you can populate now,
-ready for a future or external check to read, not as an enforced
-access-control gate. Do not describe this as four-eyes approval; the
-approver role is designed and tested, not enforced.
+What makes this a control rather than an honour system is where the human
+identity comes from. For a real backend the CLI reads it from the access token
+(`GET /user` on GitLab or GitHub), so the approver is the authenticated token
+holder, not a name typed into `--human`. The in-memory mock keeps its
+self-declared demo name, because there is nothing to authenticate against; the
+enforcement still runs, it just trusts the demo label.
 
-Identity-bound approver enforcement is on the roadmap, not built. Real
-four-eyes means the gate checks the acting person against the `approvers`
-list for the path, and that the person's identity is authenticated (tied to
-SSO or a verified Git identity) rather than a label they typed. Until that
-lands, the compensating control is your own organisation's process: have a
-second named person review the change before the approver says yes. The tool
-does not verify that this happened, so the discipline sits with you, not with
-the code.
+Honest scope. This enforcement is in the CLI. The VS Code Web IDE extension
+surface does not yet run the same check, so on that surface the approver label
+is still self-declared. Organisation-wide identity (one SSO across every
+surface) and a signed, non-repudiable log (Sigstore) are on the roadmap. Until
+the extension path is wired, treat the extension approver as intent, not
+identity, and keep your own review discipline there.
 
 ### Who actually approves, and how
 
-Since the `approvers` list does not gate anything, approval today is just
-whoever is at the controls saying yes. There are two surfaces:
+There are two surfaces:
 
 - A developer runs the CLI and answers the interactive confirm prompt in the
-  terminal (or passes `--yes` to approve everything on an unattended run).
-  The `--human` / `WERKNARIO_HUMAN` label is written into the audit log next
-  to that yes, but it is self-declared, so it proves intent, not identity.
+  terminal (or passes `--yes` for an unattended run). For a real GitLab/GitHub
+  backend the approver identity is the authenticated token holder, and the
+  `approvers` policy is enforced against it: an unauthorised person is refused
+  the merge.
 - A non-technical approver uses the VS Code Web IDE extension surface, which
   shows the staged change and its diff and offers the same accept action
-  without a terminal. It is the same underlying confirm; only the front end
-  differs.
-
-Neither surface checks the acting person against the `approvers` list for
-the path. That check is the enforcement work still to come.
+  without a terminal. That surface does not yet enforce the `approvers` list,
+  so pair it with your own review process until cross-surface enforcement
+  lands.
 
 ## Validation
 

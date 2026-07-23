@@ -165,12 +165,13 @@ it afterwards instead of trusting it.
   `.werknario/policy.json` scopes an agent to path globs, so a task about one
   folder cannot rewrite the whole repo.
 - **The approver is a human reading a diff, not code.** Every write and the
-  merge itself pause for a human `yes` in the terminal, so a non-developer can
-  hold the gate. Holding it in the terminal still means running the CLI, so a
-  non-technical approver works from the VS Code Web IDE extension surface
-  instead. The policy also carries a named-approver role; that role is defined
-  and tested but not yet enforced by the gate, so read it as design, not a
-  control.
+  merge itself pause for a human `yes` in the terminal. The policy's
+  named-approver role is enforced in the CLI against an authenticated identity:
+  for a GitLab/GitHub backend the approver is the token holder (`GET /user`),
+  and the merge is blocked if that person is not on the `approvers` list for a
+  touched path. The VS Code Web IDE extension surface does not yet run this
+  check, so on that surface the approver is self-declared. Cross-surface SSO and
+  a signed log are on the roadmap.
 - **The log is offline-verifiable.** Every step is a hash-chained entry;
   `node packages/cli/dist/cli.js verify .werknario/audit.jsonl` exits non-zero
   if the chain breaks. It is a hash chain, not a signature: it detects edits,

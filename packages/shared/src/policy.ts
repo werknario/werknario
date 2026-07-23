@@ -80,10 +80,10 @@ function normalizePath(path: string): string {
 /**
  * Who may approve a change touching this path? Most specific glob wins.
  *
- * Status: descriptive, not yet enforced. `canWrite` (which agent may write which
- * path) is enforced by the executor's write guard; this approver list is defined
- * and validated but no code gates approval by it today, because real enforcement
- * needs an authenticated human identity rather than a self-declared one. See
+ * Enforced by the CLI merge gate via `checkApprover` below: a human not on the
+ * list for a touched path is refused the merge. It is a real control only when
+ * the human identity is authenticated (the CLI reads it from the backend token),
+ * not self-declared; the web-IDE extension surface does not gate on it yet. See
  * docs/permissions.md.
  */
 export function approversFor(policy: WerknarioPolicy, path: string): string[] {

@@ -104,10 +104,11 @@ review and confirm each step in the VS Code Web IDE extension surface, where the
 same diff and the same `yes` show up as buttons rather than a command line.
 
 A note on the policy file: `.werknario/policy.json` can list named approver roles
-per path. That schema is defined and unit-tested, but nothing in the CLI or the
-extension enforces it yet. Today "approve" means whoever runs the CLI or the
-extension confirms the prompt; there is no check that they are one of the listed
-approvers. Read the approver role as design, not an enforced control. See
+per path, and the CLI now enforces them. For a GitLab/GitHub backend it reads the
+approver's identity from the access token (`GET /user`), so the approver is
+authenticated, and a merge is blocked if that person is not on the `approvers`
+list for a touched path. The VS Code Web IDE extension surface does not yet run
+this check, so on that surface the approver is still self-declared. See
 [permissions.md](permissions.md).
 
 ## Which models can I use?
