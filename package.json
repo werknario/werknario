@@ -2,6 +2,7 @@
   "name": "werknario-webide-agent-workspace",
   "private": true,
   "version": "0.1.0",
+  "license": "Apache-2.0",
   "description": "werknario — an agent that proposes document changes as reviewable, auditable diffs. Git (GitLab or GitHub) is the document store, a human approves, and every step lands in a tamper-evident audit log. CLI, VS Code Web IDE extension, GDPR-aware multi-model.",
   "workspaces": [
     "packages/*",
