@@ -10,6 +10,7 @@ export * from "./tokens.js";
 export * from "./routing.js";
 export * from "./friendlyError.js";
 export * from "./audit.js";
+export * from "./signing.js";
 export * from "./policy.js";
 export * from "./diff.js";
 export * from "./memory.js";

@@ -7,7 +7,7 @@
  */
 
 import { createInterface } from "node:readline/promises";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
   buildSystemPrompt,
   canWrite,
@@ -17,7 +17,9 @@ import {
   formatDiff,
   friendlyError,
   parsePolicy,
+  signatureDetail,
   validateRoutingPolicy,
+  verifySignatures,
   type ToolBackend,
   type WerknarioPolicy,
 } from "@werknario/shared";
@@ -33,13 +35,20 @@ import { closeLoop } from "./closeLoop.js";
 import { gitlabGateway, githubGateway } from "./gateways.js";
 import { mockBackend } from "./mockBackend.js";
 import { openAuditLog } from "./auditStore.js";
+import {
+  generateKeypair,
+  keyIdFromPrivatePem,
+  makeVerifier,
+  signData,
+} from "./signing.js";
 import type { MergeGateway } from "./closeLoop.js";
 
 const USAGE = `werknario — an agent that proposes document changes as reviewable, auditable diffs.
 
 Usage:
   werknario "your task in plain language" [options]
-  werknario verify [audit.jsonl] [--genesis <owner/repo>]   check an audit log
+  werknario verify [audit.jsonl] [--genesis <owner/repo>] [--pubkey <key.pub>]
+  werknario keygen [--out <prefix>]                          make an Ed25519 signing key
 
 Options:
   --yes          approve everything automatically (unattended)
@@ -51,6 +60,10 @@ Options:
   --audit <path> audit log file (default .werknario/audit.jsonl)
   --policy <path> permission file (default .werknario/policy.json)
   --max-turns <n> cap the number of model turns
+
+Signing (optional, self-hosted, EU-resident): set WERKNARIO_SIGNING_KEY to an
+Ed25519 private key (from 'werknario keygen') and each run signs the chain head;
+'werknario verify --pubkey <key.pub>' checks those signatures.
 
 Backend (GitLab or GitHub) and model come from the environment. See the README.
 `;
@@ -152,7 +165,7 @@ async function buildBackend(config: CliConfig): Promise<{
   throw new Error("No backend configured.");
 }
 
-/** `werknario verify [path] [--genesis <repo>]` — check an audit log and exit. */
+/** `werknario verify [path] [--genesis <repo>] [--pubkey <key.pub>]`. */
 function runVerify(argv: string[]): void {
   const positional = argv[1] && !argv[1].startsWith("--") ? argv[1] : undefined;
   const path = positional ?? opt(argv, "audit") ?? ".werknario/audit.jsonl";
@@ -160,12 +173,68 @@ function runVerify(argv: string[]): void {
     process.stderr.write(`No audit file at ${path}\n`);
     process.exit(1);
   }
-  const outcome = verifyAuditText(readFileSync(path, "utf8"), opt(argv, "genesis"));
+  const text = readFileSync(path, "utf8");
+  const outcome = verifyAuditText(text, opt(argv, "genesis"));
   const head = outcome.ok
     ? `verified (${outcome.entries} entries, genesis ${outcome.genesisUsed})`
     : `BROKEN at entry ${outcome.brokenAt ?? "?"}: ${outcome.reason ?? "unknown"}`;
   process.stdout.write(`Audit ${path} — chain ${head}.\n`);
-  process.exit(outcome.ok ? 0 : 1);
+  if (!outcome.ok) process.exit(1);
+
+  // Optional: check the Ed25519 signature checkpoints against a public key.
+  const pubkeyPath = opt(argv, "pubkey");
+  if (pubkeyPath) {
+    if (!existsSync(pubkeyPath)) {
+      process.stderr.write(`No public key at ${pubkeyPath}\n`);
+      process.exit(1);
+    }
+    const entries = text
+      .split("\n")
+      .filter((l) => l.trim() !== "")
+      .map(
+        (l) =>
+          JSON.parse(l) as {
+            seq: number;
+            action: string;
+            detail?: unknown;
+            hash: string;
+          },
+      );
+    const sig = verifySignatures(entries, makeVerifier(readFileSync(pubkeyPath, "utf8")));
+    if (!sig.ok) {
+      process.stdout.write(`Signatures — FAILED: ${sig.reason}\n`);
+      process.exit(1);
+    }
+    process.stdout.write(
+      sig.checked > 0
+        ? `Signatures — ${sig.checked} verified for the given key.\n`
+        : `Signatures — none in this log (nothing was signed).\n`,
+    );
+  }
+  process.exit(0);
+}
+
+/** `werknario keygen [--out <prefix>]` — write an Ed25519 signing keypair. */
+function runKeygen(argv: string[]): void {
+  const prefix = opt(argv, "out") ?? "werknario-signing";
+  const privPath = `${prefix}.key`;
+  const pubPath = `${prefix}.pub`;
+  if (existsSync(privPath) || existsSync(pubPath)) {
+    process.stderr.write(
+      `Refusing to overwrite an existing ${privPath} or ${pubPath}. Pick another --out prefix.\n`,
+    );
+    process.exit(1);
+  }
+  const { privatePem, publicPem, keyId } = generateKeypair();
+  writeFileSync(privPath, privatePem, { mode: 0o600 });
+  writeFileSync(pubPath, publicPem);
+  process.stdout.write(
+    `Wrote ${privPath} (private — keep it secret) and ${pubPath} (public — share it).\n` +
+      `Key id ${keyId}.\n\n` +
+      `Sign each run:  export WERKNARIO_SIGNING_KEY=${privPath}\n` +
+      `Verify a log:   werknario verify --pubkey ${pubPath}\n`,
+  );
+  process.exit(0);
 }
 
 /** `werknario eval` — run the built-in scenarios against the configured model. */
@@ -199,6 +268,10 @@ async function main(): Promise<void> {
   const rawArgv = process.argv.slice(2);
   if (rawArgv[0] === "verify") {
     runVerify(rawArgv);
+    return;
+  }
+  if (rawArgv[0] === "keygen") {
+    runKeygen(rawArgv);
     return;
   }
   if (rawArgv[0] === "eval") {
@@ -368,6 +441,29 @@ async function main(): Promise<void> {
       );
     }
   } finally {
+    // Optional: sign the chain head with the operator's Ed25519 key, appending a
+    // signature checkpoint. Verified later with `verify --pubkey`. Self-hosted;
+    // nothing leaves the machine.
+    if (process.env.WERKNARIO_SIGNING_KEY) {
+      try {
+        const privatePem = readFileSync(process.env.WERKNARIO_SIGNING_KEY, "utf8");
+        const signedHead = audit.lastHash;
+        const keyId = keyIdFromPrivatePem(privatePem);
+        audit.append(
+          "system",
+          "signature",
+          signatureDetail(signedHead, signData(signedHead, privatePem), keyId),
+        );
+        process.stdout.write(
+          `\nSigned chain head ${signedHead.slice(0, 12)} with key ${keyId}.\n`,
+        );
+      } catch (e) {
+        process.stderr.write(
+          `\nCould not sign the audit log: ${e instanceof Error ? e.message : String(e)}\n`,
+        );
+      }
+    }
+
     // Entries were written to disk as they were made (openAuditLog's onAppend),
     // so there is nothing to flush here — just report the chain state and head.
     const v = audit.verify();
