@@ -95,12 +95,12 @@ Everything below uses the source form so it works without that step.
 | Runs today (built and tested) | Designed, not built yet |
 |---|---|
 | CLI, full flow: read repo → propose → human approves → open merge/pull request → conflict check → human approves merge → merge → revert | Live **hosted** browser demo — the extension, proxy, and registry are built and tested; what's missing is a DNS record and a Caddy entry on the host so a real GitLab Web IDE can reach them ([docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)) |
-| Backends: GitLab, GitHub, and an in-memory mock | Sigstore commit signing (the log is a hash chain today, not a signature) |
+| Backends: GitLab, GitHub, and an in-memory mock | Keyless Sigstore with a public transparency log (optional self-hosted Ed25519 signing of the log is built; see below) |
 | Providers: mock, Anthropic, AWS Bedrock (EU), and one OpenAI-compatible provider for Mistral / Kimi / DeepSeek / Qwen / self-hosted models | A full CI-verify-and-auto-rollback loop (the conflict check runs; `--verify-cmd` and `rollback` exist; nothing yet reverts automatically off a post-merge CI signal) |
 | Model registry with prices and a data-residency flag; deterministic model router; token budget; prompt caching | A vector index for retrieval, held behind a measured Recall@k threshold |
 | Grounding gate: a citation to a file or line the agent never read hard-blocks the merge request; the number-coverage check is advisory | |
 | Path permission policy (which agent may write which path globs) | |
-| Tamper-evident, hash-chained audit log (each entry seals the one before it, so any later edit is detectable), plus offline `verify` | |
+| Tamper-evident, hash-chained audit log (each entry seals the one before it, so any later edit is detectable), plus offline `verify`; optional Ed25519 signing (`keygen` / `verify --pubkey`) for non-repudiation | |
 | The VS Code Web IDE extension, the LLM proxy server, and the gallery-proxy registry service | |
 
 The offline mock path is proven end to end. The GitLab and GitHub paths are
@@ -174,9 +174,10 @@ it afterwards instead of trusting it.
   a signed log are on the roadmap.
 - **The log is offline-verifiable.** Every step is a hash-chained entry;
   `node packages/cli/dist/cli.js verify .werknario/audit.jsonl` exits non-zero
-  if the chain breaks. It is a hash chain, not a signature: it detects edits,
-  reordering, and insertions after the fact, and the chain head is stamped into
-  the merge request so the Git server anchors it against tail truncation.
+  if the chain breaks. By default it detects edits, reordering, and insertions
+  after the fact, and the chain head is stamped into the merge request so the Git
+  server anchors it against tail truncation. Turn on optional Ed25519 signing
+  (`keygen`, then `verify --pubkey`) and it also proves who produced the log.
 - **The router refuses to send personal data to a non-EU model, and now
   enforces it.** Before any model call the CLI resolves the route's residency:
   `mock` is local and exempt, Bedrock counts as EU only in an `eu-` region

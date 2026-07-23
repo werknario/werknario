@@ -139,7 +139,7 @@ everything already done around them.
 | Zitadel identity | Planned, not built |
 | Cognee memory service | Planned, not built. Memory today is a Git-native decision log (`packages/shared/src/memory.ts`): versioned, citable documents retrieved with the existing `search_files` / `read_file`, no external store |
 | Deferred vector index for memory retrieval | Deferred behind a measured Recall@k threshold, not built. Retrieval currently runs on keyword search over the decision log |
-| Sigstore commit signing | Planned, not built. The audit log is a hash chain today, not a cryptographically signed one (see [`audit-and-trust.md`](./audit-and-trust.md)) |
+| Keyless Sigstore with a public transparency log | Planned, not built. Optional self-hosted Ed25519 signing of the audit log is built (`keygen` / `verify --pubkey`); the keyless Sigstore/Rekor route, which adds third-party timestamping, is the roadmap step (see [`audit-and-trust.md`](./audit-and-trust.md)) |
 | Full CI-verify-and-auto-rollback loop | Partially built. The conflict check before merge is real and always runs; further verification is a pluggable hook (`CloseLoopDeps.verify`) with a shipped implementation, `--verify-cmd <cmd>`, which runs any shell command and blocks the merge on a non-zero exit. `rollback()` exists, is audited, and works, but nothing calls it automatically from a post-merge CI signal. It is offered as an explicit, human-triggered action, not an automatic reaction |
 | Live hosted browser demo | The extension, proxy, and registry service are built and tested. Reaching them from a real GitLab Web IDE needs DNS and Caddy on the target host (see [`DISTRIBUTION.md`](./DISTRIBUTION.md)) |
 

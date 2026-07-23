@@ -141,10 +141,12 @@ enforcement still runs, it just trusts the demo label.
 
 Honest scope. This enforcement is in the CLI. The VS Code Web IDE extension
 surface does not yet run the same check, so on that surface the approver label
-is still self-declared. Organisation-wide identity (one SSO across every
-surface) and a signed, non-repudiable log (Sigstore) are on the roadmap. Until
-the extension path is wired, treat the extension approver as intent, not
-identity, and keep your own review discipline there.
+is still self-declared. Organisation-wide identity (one SSO across every surface)
+is on the roadmap. The audit log can already be signed for non-repudiation
+(optional Ed25519, see [audit-and-trust.md](audit-and-trust.md)); the keyless
+Sigstore route with a public transparency log is the further step. Until the
+extension path is wired, treat the extension approver as intent, not identity,
+and keep your own review discipline there.
 
 ### Who actually approves, and how
 

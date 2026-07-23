@@ -98,22 +98,41 @@ should follow its last one. The mitigation is an external anchor (below).
 
 ### What this guarantee is, and is not
 
-This is a hash chain, not a signature. `verify` exits non-zero if the chain
-breaks, which is what makes silent middle-of-chain tampering detectable. But
-nothing in the current build cryptographically signs entries with a key that
-only the legitimate actor holds. Do not read the log as "signed" or
-"non-repudiable." Sigstore commit signing would add that, and it is planned, not
-built (see [architecture-and-status.md](architecture-and-status.md)).
+By default the log is an unsigned hash chain. `verify` exits non-zero if the
+chain breaks, which is what makes silent middle-of-chain tampering detectable.
+On its own an unsigned chain does not prove who produced it: anyone with write
+access to the `.jsonl` file and the same hash function could, in principle,
+rewrite the file from some point onward and produce a chain that verifies again
+by recomputing every hash after their edit. Truncating the tail is even easier;
+it needs no recomputation at all. So treat an unsigned log as tamper-evident for
+accidental changes and partial edits, not as proof against someone with local
+file access and the motivation to rewrite the whole thing.
 
-As it stands, anyone with write access to the `.jsonl` file and the same hash
-function could, in principle, rewrite the file from some point onward and
-produce a chain that verifies again, by recomputing every hash after their edit.
-Truncating the tail is even easier: it needs no recomputation at all. What
-`verify()` catches today is silent, partial tampering in the middle of the
-chain: an edit, deletion, reorder, or insert that doesn't also regenerate the
-whole tail. Treat the log as tamper-evident for accidental changes and partial
-edits. It is not yet proof against someone with local file access and the
-motivation to rewrite or shorten the whole thing.
+Two things close that gap: optional signing (below) and the external anchor
+(further below).
+
+### Signing (optional, self-hosted)
+
+Signing adds what the hash chain cannot: non-repudiation. With a key configured,
+each run signs the chain head with Ed25519 and appends a signature checkpoint, so
+a tamperer who re-chains the log still cannot forge a signature over the new head
+without the private key. It uses node's built-in crypto: no key service, no
+transparency log, nothing leaves the machine, so it stays EU-resident.
+
+```bash
+werknario keygen --out werknario-signing            # writes .key (private) and .pub (public)
+export WERKNARIO_SIGNING_KEY=werknario-signing.key  # each run now signs the chain head
+werknario verify .werknario/audit.jsonl --pubkey werknario-signing.pub
+```
+
+`verify --pubkey` reports how many checkpoints verified for that key and fails if
+a signed head was altered. Keep the private key off machines that only need to
+verify; share the public key freely.
+
+The heavier keyless route — Sigstore (Fulcio) with a transparency log (Rekor) —
+would add third-party timestamping and an OIDC-bound identity on top. Rekor is a
+public log by default, so a self-hosted Rekor is a prerequisite for that route
+under EU residency; it stays on the roadmap.
 
 ### External anchor
 
@@ -130,13 +149,13 @@ werknario audit anchor: N entries, head <hash>
 longer matches the anchor the server holds, and the server is a record the local
 file cannot rewrite. So tail truncation, the one gap `verify` can't close on its
 own, is caught by cross-checking the local head against the MR-stamped head on
-the Git server. Signing entries with Sigstore is the next step after this.
+the Git server.
 
 Taken together, that fixes what the log is worth as evidence: internal
 tamper-evidence for partial edits, anchored to the merge-request head the Git
-server independently holds. It is not court-grade non-repudiation; proving that
-one specific actor and no one else produced a given entry would need the planned
-Sigstore signing.
+server independently holds, and — with signing enabled — non-repudiation against
+the key holder. A public transparency log (Sigstore/Rekor), which would add
+third-party timestamping for court-grade evidence, remains on the roadmap.
 
 ### Durability
 

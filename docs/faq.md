@@ -70,22 +70,22 @@ self-hosting question below.
 
 ## Is the audit log a signature?
 
-No. It is a hash chain, not a signature, and the difference matters. Each entry
-is hashed together with the hash of the entry before it, so silent tampering in
-the middle of the chain (editing an entry, deleting one, reordering, or
-inserting one) breaks the links. `verify` replays the chain from the genesis and
-exits non-zero if it does not check out.
+By default it is a hash chain, and you can turn on a signature. Each entry is
+hashed together with the hash of the entry before it, so silent tampering in the
+middle of the chain (editing an entry, deleting one, reordering, or inserting
+one) breaks the links. `verify` replays the chain from the genesis and exits
+non-zero if it does not check out.
 
-What a hash chain does not do is prove who wrote an entry. Nothing yet signs
-entries with a key that only the legitimate actor holds, so treat the log as
-tamper-evident, not non-repudiable. There is also one case `verify` cannot catch
-on its own: truncating the tail. Deleting the last entries leaves a chain that
-still verifies from the genesis, because a local file has no way to know an entry
-should follow its last one. The mitigation is an external anchor. When the CLI
-opens a merge request it stamps the current chain head into the request
-description, so a log later shortened below that point no longer matches the
-anchor the Git server holds. Signing with Sigstore is planned, not built. The
-full account of what the chain does and does not cover is in
+An unsigned hash chain does not prove who wrote an entry. Optional Ed25519
+signing closes that: run `werknario keygen`, set `WERKNARIO_SIGNING_KEY`, and each
+run signs the chain head, so a tamperer who re-chains the log still cannot forge a
+signature without the private key. `verify --pubkey <key.pub>` checks it. It is
+self-hosted node crypto, nothing leaves the machine. There is also one case
+`verify` cannot catch on its own: truncating the tail. Deleting the last entries
+leaves a chain that still verifies from the genesis, so when the CLI opens a
+merge request it stamps the current chain head into the request description as an
+external anchor. The heavier keyless route (Sigstore with a public transparency
+log) stays on the roadmap. The full account is in
 [audit-and-trust.md](audit-and-trust.md).
 
 ## Does it write to my repository without my approval?
