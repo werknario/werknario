@@ -1,4 +1,4 @@
-# Permissions
+# The path permission policy: which paths an agent may write
 
 `.werknario/policy.json` answers two questions before the tool trusts an
 agent with real files: which paths may this agent write, and who is allowed

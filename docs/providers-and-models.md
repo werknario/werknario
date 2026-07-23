@@ -1,4 +1,4 @@
-# Providers and models
+# Providers, models, and the EU data-residency router
 
 werknario is not tied to one model vendor. A `Provider` is one function,
 `createMessage(req) -> response`, and everything above it (the agent loop,

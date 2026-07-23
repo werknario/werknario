@@ -1,4 +1,4 @@
-# Architecture and status
+# Architecture and status: what runs today, what is designed but not built
 
 werknario proposes changes to your documents as reviewable, auditable diffs.
 Git, either GitLab or GitHub, is the document store. An agent (software that

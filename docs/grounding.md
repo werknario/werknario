@@ -1,4 +1,4 @@
-# Grounding / citation contract
+# The citation gate: a source the agent never read blocks the merge request
 
 This is the grounding half of the system. It addresses the fabrication worry at the root: the Git repo is the single source of truth, and the agent may only claim what it actually read there, naming the place it read it.
 

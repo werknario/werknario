@@ -252,5 +252,3 @@ follow it.
 > `mock://merge-request/1`, merges it, and ends with an audit line that reports
 > the chain verified. Then run `npm test` and `npm run typecheck`, and add a test
 > for the new behaviour.
-</content>
-</invoke>

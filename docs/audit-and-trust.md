@@ -1,4 +1,4 @@
-# Audit and trust
+# The tamper-evident, hash-chained audit log, and where its guarantee stops
 
 werknario's trust claim is narrow and checkable. Every change is a reviewable
 diff, proposed by a named agent and approved by a named human, and the whole

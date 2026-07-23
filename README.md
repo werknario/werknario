@@ -5,18 +5,23 @@ your documents, drafts a change, and hands it to a human to approve before
 anything is final. Your files live in Git (GitLab or GitHub). An agent here is
 software that carries a task through to the end, not just answers.
 
-The point is not that AI writes your documents. Plenty of tools claim that. The
-point is the mechanism: every change is a reviewable diff (the exact lines a
-change adds and removes), proposed by a named agent and approved by a named
-human, and the whole history can be verified rather than trusted.
+Every change is a reviewable diff, proposed by a named agent and approved by a
+named human, and the whole history can be verified rather than trusted.
 
-![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+The point is not that an agent writes your documents. Plenty of tools claim
+that. The point is the mechanism: a citation to a file the agent never read
+blocks the merge request before a human ever sees it, and `werknario verify`
+checks the whole log with an exit code instead of a promise. You can watch both
+in an offline demo with no key and no server.
+
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 ![Node](https://img.shields.io/badge/node-20%2B-informational)
-![CI](https://img.shields.io/badge/CI-GitLab%20%2B%20GitHub-informational)
+<!-- Live CI badge — enable once the public GitHub Actions pipeline is reliably green:
+[![CI](https://github.com/werknario/werknario/actions/workflows/ci.yml/badge.svg)](https://github.com/werknario/werknario/actions/workflows/ci.yml) -->
 
-The CI badge is guidance, not a live status: the repo ships pipelines for both
-GitLab CI (`.gitlab-ci.yml`) and GitHub Actions (`.github/`). Check your own
-run for the current result.
+The repo ships pipelines for both GitLab CI (`.gitlab-ci.yml`) and GitHub
+Actions (`.github/workflows/ci.yml`). The live CI badge goes up once the public
+pipeline is green; until then, check your own run.
 
 ## Try it (one command after install)
 
@@ -79,6 +84,28 @@ Audit: 9 entries at .werknario/audit.jsonl — chain verified.
 The bundled demo substrate is a German music-label example, so the agent
 narrates in German and follows the substrate's language. Point it at your own
 repo and the language follows your documents.
+
+The sharper demo is the one that fails on purpose. `npm run demo:blocked` runs
+the same flow, except the agent cites a file it never read. The grounding gate
+refuses the merge request before a human sees it, and the audit chain still
+verifies:
+
+```
+werknario · mock/demo (mock)
+  · read_file
+  · propose_edit
+  · create_merge_request
+
+MR refused: fabricated citation. Die Beschreibung belegte vertraege/fees.csv,
+aber diese Datei wurde in dieser Sitzung nie gelesen. Das Grounding-Gate hat den
+Merge Request abgewiesen, bevor ein Mensch ihn gesehen hat.
+
+Audit: 4 entries at .werknario/audit.jsonl — chain verified.
+```
+
+That guarantee is invisible in a happy path, which is the point of showing it.
+A recorded cast of this run belongs above the fold before launch; see
+[docs/launch/demo-script.md](docs/launch/demo-script.md).
 
 With Docker instead (the image puts `werknario` on PATH):
 
@@ -228,7 +255,7 @@ interface, so a backend or a model is a swap, not a rewrite.
 [recipes](docs/recipes.md) ·
 [self-hosting](docs/self-hosting.md)
 
-**How it works and why to trust it**
+**How it works and why to check it**
 [architecture and status](docs/architecture-and-status.md) ·
 [audit and trust](docs/audit-and-trust.md) ·
 [grounding](docs/grounding.md) ·
