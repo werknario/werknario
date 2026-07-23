@@ -290,6 +290,8 @@ async function main(): Promise<void> {
   const allowNonEu = /^(1|true|yes)$/i.test(process.env.WERKNARIO_ALLOW_NON_EU ?? "");
   const residency = checkRunResidency(proxyConfig.provider, proxyConfig.model, {
     region: proxyConfig.bedrock.region,
+    baseUrl: proxyConfig.openaiCompatible.baseUrl,
+    euHosts: proxyConfig.openaiCompatible.euHosts,
     allowNonEu,
   });
   if (!residency.ok) {

@@ -152,8 +152,9 @@ export function validateRoutingPolicy(policy: RoutingPolicy): string[] {
  * Residency of the actual run route, not just the model id. Residency is a
  * property of the route: the same Claude model is EU over Bedrock's EU region
  * but non-EU over Anthropic's direct (US) API, so this keys on provider (and
- * region for Bedrock), and falls back to the model registry for openai-compatible
- * endpoints. Unknown routes are treated as non-EU on purpose.
+ * region for Bedrock), and on the base_url host for openai-compatible endpoints
+ * (an EU-registered model over a non-EU host is not EU). Unknown routes are
+ * treated as non-EU on purpose.
  */
 export interface RunResidencyDecision {
   /** May the run proceed (EU-safe, or a non-EU route with an explicit override). */
@@ -164,14 +165,47 @@ export interface RunResidencyDecision {
   reason: string;
 }
 
+/** Extrahiert den kleingeschriebenen Hostnamen aus einer base_url (oder einem
+ *  bloßen Host). Unparsbar -> undefined, damit der Aufrufer fail-safe reagiert. */
+function hostFromUrl(raw: string | undefined): string | undefined {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return undefined;
+  try {
+    const url = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+    return url.hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+/** Loopback, RFC-1918, .local/.internal oder ein bloßer LAN-Hostname: ein
+ *  privater Endpunkt, der die EU nicht verlässt. */
+function isPrivateHost(host: string): boolean {
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
+  if (!host.includes(".")) return true;
+  if (host.endsWith(".local") || host.endsWith(".internal")) return true;
+  if (/^10\./.test(host)) return true;
+  if (/^192\.168\./.test(host)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return true;
+  return false;
+}
+
+/** Exakter Host-Treffer oder eine Subdomain eines gelisteten Hosts. */
+function hostOnAllowlist(host: string, allow: string[]): boolean {
+  return allow.some((entry) => {
+    const e = entry.trim().toLowerCase();
+    return e.length > 0 && (host === e || host.endsWith(`.${e}`));
+  });
+}
+
 function routeResidency(
   provider: string,
   modelId: string,
-  region: string | undefined,
+  opts: { region?: string | undefined; baseUrl?: string | undefined; euHosts?: string[] },
 ): DataResidency {
   if (provider === "bedrock") {
     // Bedrock is EU only in an EU region; anything else is not verified EU.
-    return region && /^eu-/i.test(region) ? "eu" : "non-eu";
+    return opts.region && /^eu-/i.test(opts.region) ? "eu" : "non-eu";
   }
   if (provider === "anthropic") {
     // Anthropic's direct API is US-based; no EU data residency.
@@ -180,10 +214,23 @@ function routeResidency(
   if (provider === "openai-compatible") {
     const id = canonicalModelId(modelId);
     const spec = id ? getModel(id) : undefined;
-    if (spec && (spec.dataResidency === "eu" || spec.dataResidency === "self-host")) {
-      return spec.dataResidency;
+    // A non-EU model (or an unknown one) is never EU, whatever the host.
+    if (!spec || spec.dataResidency === "non-eu") return "non-eu";
+    // Residency is a property of the endpoint, not the model name: an EU- or
+    // self-host-registered model still leaves the EU if base_url points at a
+    // non-EU host. Verify the host; an unverifiable host fails safe to non-EU.
+    const host = hostFromUrl(opts.baseUrl);
+    if (!host) return "non-eu";
+    const operatorHosts = opts.euHosts ?? [];
+    if (spec.dataResidency === "self-host") {
+      return isPrivateHost(host) || hostOnAllowlist(host, operatorHosts)
+        ? "self-host"
+        : "non-eu";
     }
-    return "non-eu";
+    // spec.dataResidency === "eu": only over a known-EU host for this model, or a
+    // host the operator has explicitly declared EU-resident.
+    const allow = [...(spec.euHosts ?? []), ...operatorHosts];
+    return hostOnAllowlist(host, allow) ? "eu" : "non-eu";
   }
   return "non-eu";
 }
@@ -197,7 +244,12 @@ function routeResidency(
 export function checkRunResidency(
   provider: string,
   modelId: string,
-  opts: { region?: string | undefined; allowNonEu: boolean },
+  opts: {
+    region?: string | undefined;
+    baseUrl?: string | undefined;
+    euHosts?: string[];
+    allowNonEu: boolean;
+  },
 ): RunResidencyDecision {
   if (provider === "mock") {
     return {
@@ -207,7 +259,11 @@ export function checkRunResidency(
       reason: "The mock provider runs locally; no data leaves the machine.",
     };
   }
-  const residency = routeResidency(provider, modelId, opts.region);
+  const residency = routeResidency(provider, modelId, {
+    region: opts.region,
+    baseUrl: opts.baseUrl,
+    euHosts: opts.euHosts,
+  });
   if (residency === "eu" || residency === "self-host") {
     return {
       ok: true,

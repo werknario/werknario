@@ -108,10 +108,75 @@ describe("checkRunResidency (the run-path guard)", () => {
     expect(d.ok).toBe(false);
   });
 
-  it("allows an EU openai-compatible model (Mistral)", () => {
-    expect(
-      checkRunResidency("openai-compatible", "mistral-large-3", { allowNonEu: false }).ok,
-    ).toBe(true);
+  // Finding F1 (Trust-Audit 2026-07-23): residency for openai-compatible is a
+  // property of the endpoint (base_url host), not just the registered model name.
+  it("blocks an EU-registered openai-compatible model on a non-EU host (F1)", () => {
+    const d = checkRunResidency("openai-compatible", "mistral-large-3", {
+      baseUrl: "https://openrouter.ai/api/v1",
+      allowNonEu: false,
+    });
+    expect(d.ok).toBe(false);
+    expect(d.residency).toBe("non-eu");
+  });
+
+  it("allows an EU openai-compatible model on its known EU host (Mistral)", () => {
+    const d = checkRunResidency("openai-compatible", "mistral-large-3", {
+      baseUrl: "https://api.mistral.ai/v1",
+      allowNonEu: false,
+    });
+    expect(d.ok).toBe(true);
+    expect(d.residency).toBe("eu");
+  });
+
+  it("fails safe to non-EU when an EU-registered model has no base_url to verify", () => {
+    const d = checkRunResidency("openai-compatible", "mistral-large-3", {
+      allowNonEu: false,
+    });
+    expect(d.ok).toBe(false);
+    expect(d.residency).toBe("non-eu");
+  });
+
+  it("allows a self-host model only on a local/private endpoint", () => {
+    const local = checkRunResidency("openai-compatible", "kimi-k2-instruct-selfhost", {
+      baseUrl: "http://localhost:8000/v1",
+      allowNonEu: false,
+    });
+    expect(local.ok).toBe(true);
+    expect(local.residency).toBe("self-host");
+
+    const publicHost = checkRunResidency("openai-compatible", "kimi-k2-instruct-selfhost", {
+      baseUrl: "https://kimi.example.com/v1",
+      allowNonEu: false,
+    });
+    expect(publicHost.ok).toBe(false);
+    expect(publicHost.residency).toBe("non-eu");
+  });
+
+  it("honours an operator-declared EU host allowlist (own OVHcloud/vLLM endpoint)", () => {
+    const host = "oai.endpoints.kepler.ai.cloud.ovh.net";
+    const withAllow = checkRunResidency("openai-compatible", "qwen3-coder-ovhcloud", {
+      baseUrl: `https://${host}/v1`,
+      euHosts: [host],
+      allowNonEu: false,
+    });
+    expect(withAllow.ok).toBe(true);
+    expect(withAllow.residency).toBe("eu");
+
+    const withoutAllow = checkRunResidency("openai-compatible", "qwen3-coder-ovhcloud", {
+      baseUrl: `https://${host}/v1`,
+      allowNonEu: false,
+    });
+    expect(withoutAllow.ok).toBe(false);
+  });
+
+  it("still allows a non-EU host with the explicit override, marked overridden", () => {
+    const d = checkRunResidency("openai-compatible", "mistral-large-3", {
+      baseUrl: "https://openrouter.ai/api/v1",
+      allowNonEu: true,
+    });
+    expect(d.ok).toBe(true);
+    expect(d.overridden).toBe(true);
+    expect(d.residency).toBe("non-eu");
   });
 
   it("blocks a non-EU openai-compatible model (Kimi direct)", () => {

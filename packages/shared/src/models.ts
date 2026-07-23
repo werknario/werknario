@@ -52,6 +52,14 @@ export interface ModelSpec {
   /** Bietet das Modell verlässliches Tool-Use? Ohne das taugt es für den Agenten nicht. */
   supportsTools: boolean;
   dataResidency: DataResidency;
+  /**
+   * Für openai-compatible EU-Modelle: die Hostnamen, unter denen dieses Modell
+   * EU-residenzsicher erreichbar ist (z. B. api.mistral.ai). Residenz ist eine
+   * Eigenschaft des Endpunkts, nicht des Modellnamens — dasselbe Modell über einen
+   * anderen Host verlässt die EU. Fehlt das Feld, gilt das Modell nur über eine vom
+   * Betreiber erklärte Host-Allowlist (WERKNARIO_OPENAI_COMPAT_EU_HOSTS) als EU.
+   */
+  euHosts?: string[];
   /** Verifizierter Preis, oder null wenn (noch) nicht belegt. */
   price: ModelPrice | null;
 }
@@ -152,6 +160,7 @@ export const MODELS: ModelSpec[] = [
     contextWindow: 256_000,
     supportsTools: true,
     dataResidency: "eu",
+    euHosts: ["api.mistral.ai"],
     price: {
       inputPerMTok: 0.5,
       outputPerMTok: 1.5,

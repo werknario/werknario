@@ -24,6 +24,9 @@ export interface ProxyConfig {
   openaiCompatible: {
     baseUrl: string | undefined;
     apiKey: string | undefined;
+    /** Vom Betreiber erklärte EU-Hosts für den openai-compatible-Endpunkt
+     *  (WERKNARIO_OPENAI_COMPAT_EU_HOSTS), zusätzlich zur Registry-Allowlist. */
+    euHosts: string[];
   };
 }
 
@@ -48,6 +51,14 @@ function parseProvider(raw: string | undefined): ProviderName {
   return "mock";
 }
 
+/** Vom Betreiber erklärte EU-Host-Allowlist für openai-compatible-Endpunkte. */
+function parseEuHosts(raw: string | undefined): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter((h) => h.length > 0);
+}
+
 /** Reads proxy configuration from process.env. Never logs secret values. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ProxyConfig {
   return {
@@ -67,6 +78,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ProxyConfig {
     openaiCompatible: {
       baseUrl: env.LLM_OPENAI_COMPAT_BASE_URL,
       apiKey: env.LLM_OPENAI_COMPAT_API_KEY,
+      euHosts: parseEuHosts(env.WERKNARIO_OPENAI_COMPAT_EU_HOSTS),
     },
   };
 }

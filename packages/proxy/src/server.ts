@@ -11,6 +11,8 @@ const config = loadConfig();
 const allowNonEu = /^(1|true|yes)$/i.test(process.env.WERKNARIO_ALLOW_NON_EU ?? "");
 const residency = checkRunResidency(config.provider, config.model, {
   region: config.bedrock.region,
+  baseUrl: config.openaiCompatible.baseUrl,
+  euHosts: config.openaiCompatible.euHosts,
   allowNonEu,
 });
 if (!residency.ok) {
