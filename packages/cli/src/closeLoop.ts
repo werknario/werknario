@@ -11,7 +11,13 @@
  * an explicit, audited action rather than pretended.
  */
 
-import { AuditLog, friendlyError, type Locale } from "@werknario/shared";
+import {
+  AuditLog,
+  checkApprover,
+  friendlyError,
+  type Locale,
+  type WerknarioPolicy,
+} from "@werknario/shared";
 
 export interface MergeGateway {
   /** Free of conflicts (and green, if the gateway also probes CI)? */
@@ -34,12 +40,16 @@ export interface CloseLoopDeps {
   humanId: string;
   agentId: string;
   locale?: Locale;
+  /** Permission policy, if one is loaded. Enables the approver gate below. */
+  policy?: WerknarioPolicy;
+  /** The paths this change touched, checked against the policy's approver rules. */
+  touchedPaths?: string[];
 }
 
 export type CloseLoopResult =
   | {
       merged: false;
-      reason: "conflict" | "declined" | "verify_failed";
+      reason: "conflict" | "declined" | "verify_failed" | "not_authorized";
       detail?: string;
     }
   | { merged: true; sha?: string };
@@ -75,6 +85,33 @@ export async function closeLoop(
         `Verification did not pass, not merging. ${v.detail ?? ""}`.trim(),
       );
       return { merged: false, reason: "verify_failed", detail: v.detail };
+    }
+  }
+
+  // 2.5 Authorised approver. If the policy names approvers for a touched path,
+  // the acting human must be one of them. This is only a real control when
+  // humanId is authenticated (from the backend token), not self-declared — the
+  // CLI sets it from the token for GitLab/GitHub. The check runs before the
+  // approval prompt, so an unauthorised human is refused, not merely recorded.
+  if (deps.policy && deps.touchedPaths && deps.touchedPaths.length > 0) {
+    const check = checkApprover(deps.policy, humanId, deps.touchedPaths);
+    if (!check.authorized) {
+      audit.append(humanId, "merge_denied", {
+        iid,
+        reason: "not_authorized",
+        paths: check.unmetPaths,
+        requiredApprovers: check.requiredApprovers,
+      });
+      deps.out(
+        `Merge blocked: ${humanId.replace(/^human:/, "")} is not an authorised ` +
+          `approver for ${check.unmetPaths.join(", ")}. ` +
+          `Required: ${check.requiredApprovers.join(", ")}.`,
+      );
+      return {
+        merged: false,
+        reason: "not_authorized",
+        detail: check.unmetPaths.join(", "),
+      };
     }
   }
 

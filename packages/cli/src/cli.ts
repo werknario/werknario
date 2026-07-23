@@ -19,6 +19,7 @@ import {
   parsePolicy,
   validateRoutingPolicy,
   type ToolBackend,
+  type WerknarioPolicy,
 } from "@werknario/shared";
 import { GitlabClient, GitLabRestBackend } from "@werknario/gitlab-client";
 import { GitHubClient, GitHubRestBackend } from "@werknario/github-client";
@@ -101,6 +102,8 @@ async function buildBackend(config: CliConfig): Promise<{
   gateway: MergeGateway;
   projectPath: string;
   defaultBranch: string;
+  /** The username the backend token authenticates as, when it can be read. */
+  authenticatedHuman?: string;
 }> {
   if (config.backend === "mock") {
     const { backend, gateway } = mockBackend();
@@ -115,11 +118,15 @@ async function buildBackend(config: CliConfig): Promise<{
     const backend = new GitLabRestBackend(client);
     await backend.init();
     const project = await client.getProject();
+    const authenticatedHuman = await client
+      .getAuthenticatedUser()
+      .catch(() => undefined);
     return {
       backend,
       gateway: gitlabGateway(client),
       projectPath: project.path_with_namespace,
       defaultBranch: project.default_branch,
+      ...(authenticatedHuman ? { authenticatedHuman } : {}),
     };
   }
   if (config.backend === "github" && config.github) {
@@ -131,11 +138,15 @@ async function buildBackend(config: CliConfig): Promise<{
     const backend = new GitHubRestBackend(client);
     await backend.init();
     const repo = await client.getRepo();
+    const authenticatedHuman = await client
+      .getAuthenticatedUser()
+      .catch(() => undefined);
     return {
       backend,
       gateway: githubGateway(client),
       projectPath: repo.full_name,
       defaultBranch: repo.default_branch,
+      ...(authenticatedHuman ? { authenticatedHuman } : {}),
     };
   }
   throw new Error("No backend configured.");
@@ -227,7 +238,24 @@ async function main(): Promise<void> {
     }
   }
 
-  const { backend, gateway, projectPath, defaultBranch } = await buildBackend(config);
+  const { backend, gateway, projectPath, defaultBranch, authenticatedHuman } =
+    await buildBackend(config);
+
+  // For a real backend the approver identity comes from the token, not a
+  // self-declared --human. That authentication is what makes the approver gate
+  // below a control rather than an honour system. The mock keeps its demo name.
+  const humanId = authenticatedHuman
+    ? `human:${authenticatedHuman}`
+    : config.humanId;
+  if (
+    authenticatedHuman &&
+    config.humanId !== "human:you" &&
+    config.humanId !== humanId
+  ) {
+    process.stdout.write(
+      `Note: approving as the authenticated identity ${humanId}, not the --human value ${config.humanId}.\n`,
+    );
+  }
 
   const provider = createProvider(proxyConfig);
   const bedrockEu = proxyConfig.provider === "bedrock";
@@ -235,7 +263,7 @@ async function main(): Promise<void> {
   const system = buildSystemPrompt({
     projectPath,
     defaultBranch,
-    userName: config.humanId,
+    userName: humanId,
     locale: config.locale,
   });
   const audit = openAuditLog(config.auditPath, projectPath);
@@ -250,10 +278,12 @@ async function main(): Promise<void> {
   });
 
   let writeGuard: ((path: string) => { allowed: boolean; reason?: string }) | undefined;
+  let policy: WerknarioPolicy | undefined;
   if (existsSync(config.policyPath)) {
-    const policy = parsePolicy(JSON.parse(readFileSync(config.policyPath, "utf8")));
+    policy = parsePolicy(JSON.parse(readFileSync(config.policyPath, "utf8")));
+    const loaded = policy;
     const bareAgent = config.agentId.replace(/^agent:/, "");
-    writeGuard = (path: string) => canWrite(policy, bareAgent, path);
+    writeGuard = (path: string) => canWrite(loaded, bareAgent, path);
   } else {
     process.stdout.write(
       `Note: no policy file at ${config.policyPath} — ${config.agentId} may write any path. See docs/permissions.md.\n`,
@@ -274,16 +304,24 @@ async function main(): Promise<void> {
 
   process.stdout.write(`\nwerknario · ${projectPath} (${config.backend})\nTask: ${task}\n`);
 
+  // Collect the paths the agent proposes, so the merge gate can check them
+  // against the policy's approver rules.
+  const touchedPaths = new Set<string>();
+  const out = (e: RunEvent): void => {
+    if (e.type === "proposal") touchedPaths.add(e.path);
+    printEvent(e);
+  };
+
   try {
     const result = await runTask(task, {
       backend,
       caller: (req) => provider.createMessage(req),
       system,
       approve,
-      out: printEvent,
+      out,
       audit,
       agentId: config.agentId,
-      humanId: config.humanId,
+      humanId,
       bedrockEu,
       ...(config.routing ? { routing: DEFAULT_ROUTING_POLICY } : {}),
       ...(config.budgetUsd ? { budget: { maxUsd: config.budgetUsd, warnAtRatio: 0.8 } } : {}),
@@ -316,9 +354,11 @@ async function main(): Promise<void> {
           : {}),
         out: (l) => process.stdout.write(`  ${l}\n`),
         audit,
-        humanId: config.humanId,
+        humanId,
         agentId: config.agentId,
         locale: config.locale,
+        ...(policy ? { policy } : {}),
+        touchedPaths: [...touchedPaths],
       });
     } else if (config.dryRun) {
       // No merge request was opened. Say so plainly, so the agent's own

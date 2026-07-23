@@ -95,6 +95,45 @@ export function approversFor(policy: WerknarioPolicy, path: string): string[] {
   return matches[0]?.[1] ?? [];
 }
 
+export interface ApproverCheck {
+  /** True when the human may approve every touched path that has an approver rule. */
+  authorized: boolean;
+  /** The touched paths whose approver rule the human does not satisfy. */
+  unmetPaths: string[];
+  /** The union of names that would satisfy the unmet paths. */
+  requiredApprovers: string[];
+}
+
+/**
+ * Decides whether a named human may approve a merge that touches these paths.
+ * A path with a non-empty approver rule requires the human to be on that rule's
+ * list; a path with no rule is unrestricted. This is the enforcement the older
+ * `approversFor` only described: it is only meaningful when the human identity is
+ * authenticated (from the backend token), not self-declared. The `human` may be
+ * given with or without the `human:` prefix.
+ */
+export function checkApprover(
+  policy: WerknarioPolicy,
+  human: string,
+  touchedPaths: string[],
+): ApproverCheck {
+  const bare = human.replace(/^human:/, "");
+  const unmetPaths: string[] = [];
+  const required = new Set<string>();
+  for (const path of touchedPaths) {
+    const approvers = approversFor(policy, path);
+    if (approvers.length > 0 && !approvers.includes(bare)) {
+      unmetPaths.push(path);
+      for (const a of approvers) required.add(a);
+    }
+  }
+  return {
+    authorized: unmetPaths.length === 0,
+    unmetPaths,
+    requiredApprovers: [...required],
+  };
+}
+
 function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((x) => typeof x === "string");
 }

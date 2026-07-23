@@ -340,6 +340,12 @@ export class GitHubClient implements GitHubApi {
     return this.req<GitHubRepo>("GET", `/repos/${this.repoPath}`);
   }
 
+  /** The login the access token authenticates as (GET /user). */
+  async getAuthenticatedUser(): Promise<string> {
+    const user = await this.req<{ login: string }>("GET", "/user");
+    return user.login;
+  }
+
   async listTree(path: string, ref?: string): Promise<GitHubTreeEntry[]> {
     const data = await this.req<RawContentsEntry | RawContentsEntry[]>(
       "GET",

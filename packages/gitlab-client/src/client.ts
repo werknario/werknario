@@ -196,6 +196,12 @@ export class GitlabClient implements GitlabApi {
     return this.req<GitlabProject>("GET", this.projectBase);
   }
 
+  /** The username the access token authenticates as (GET /user). */
+  async getAuthenticatedUser(): Promise<string> {
+    const user = await this.req<{ username: string }>("GET", "/user");
+    return user.username;
+  }
+
   listTree(path: string, ref?: string): Promise<GitlabTreeEntry[]> {
     return this.req<GitlabTreeEntry[]>(
       "GET",

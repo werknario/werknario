@@ -41,6 +41,46 @@ describe("closeLoop", () => {
     expect(audit.verify()).toEqual({ ok: true });
   });
 
+  it("blocks the merge when the human is not an authorised approver", async () => {
+    const audit = newAudit();
+    const approveMerge = vi.fn(async () => true);
+    const gateway = fakeGateway();
+    const r = await closeLoop(5, {
+      ...base, // humanId: human:anna
+      gateway,
+      approveMerge,
+      audit,
+      policy: { approvers: { "vertraege/**": ["chef"] } },
+      touchedPaths: ["vertraege/split.md"],
+    });
+    expect(r).toEqual({
+      merged: false,
+      reason: "not_authorized",
+      detail: "vertraege/split.md",
+    });
+    expect(approveMerge).not.toHaveBeenCalled();
+    expect(gateway.merge).not.toHaveBeenCalled();
+    expect(audit.entries().map((e) => e.action)).toEqual([
+      "mergeable_check",
+      "merge_denied",
+    ]);
+    expect(audit.verify()).toEqual({ ok: true });
+  });
+
+  it("lets an authorised approver merge", async () => {
+    const audit = newAudit();
+    const gateway = fakeGateway();
+    const r = await closeLoop(5, {
+      ...base, // human:anna
+      gateway,
+      approveMerge: async () => true,
+      audit,
+      policy: { approvers: { "vertraege/**": ["anna"] } },
+      touchedPaths: ["vertraege/split.md"],
+    });
+    expect(r).toEqual({ merged: true, sha: "abc123" });
+  });
+
   it("refuses to merge on a conflict and never asks for approval", async () => {
     const audit = newAudit();
     const approveMerge = vi.fn(async () => true);

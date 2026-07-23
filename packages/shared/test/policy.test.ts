@@ -2,10 +2,53 @@ import { describe, expect, it } from "vitest";
 import {
   approversFor,
   canWrite,
+  checkApprover,
   matchGlob,
   parsePolicy,
   type WerknarioPolicy,
 } from "../src/index.js";
+
+describe("checkApprover", () => {
+  const policy: WerknarioPolicy = {
+    approvers: {
+      "vertraege/**": ["anna", "chef"],
+      "**": ["anna"],
+    },
+  };
+
+  it("authorizes a human on the most-specific rule", () => {
+    const r = checkApprover(policy, "human:chef", ["vertraege/split.md"]);
+    expect(r.authorized).toBe(true);
+    expect(r.unmetPaths).toEqual([]);
+  });
+
+  it("refuses a human not on the rule for a touched path", () => {
+    const r = checkApprover(policy, "human:bob", ["vertraege/split.md"]);
+    expect(r.authorized).toBe(false);
+    expect(r.unmetPaths).toEqual(["vertraege/split.md"]);
+    expect(r.requiredApprovers).toEqual(["anna", "chef"]);
+  });
+
+  it("takes the bare-name or prefixed form", () => {
+    expect(checkApprover(policy, "anna", ["inbox/x.md"]).authorized).toBe(true);
+  });
+
+  it("does not gate a path with no approver rule", () => {
+    const bare: WerknarioPolicy = { approvers: { "vertraege/**": ["anna"] } };
+    expect(checkApprover(bare, "bob", ["drafts/x.md"]).authorized).toBe(true);
+  });
+
+  it("reports every unmet path when several are touched", () => {
+    const r = checkApprover(policy, "human:chef", [
+      "vertraege/a.md",
+      "vertraege/b.md",
+    ]);
+    // chef is on vertraege/**, so both are fine
+    expect(r.authorized).toBe(true);
+    const r2 = checkApprover(policy, "human:bob", ["vertraege/a.md", "x.md"]);
+    expect(r2.unmetPaths.sort()).toEqual(["vertraege/a.md", "x.md"]);
+  });
+});
 
 describe("matchGlob", () => {
   it("matches ** across slashes and * within a segment", () => {
