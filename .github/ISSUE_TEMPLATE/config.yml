@@ -1,17 +1,16 @@
 # GitHub reads this file to configure the issue chooser. The two contact_links
-# below need the GitHub mirror's owner/repo slug. Replace OWNER/REPO with the
-# published GitHub path before the mirror goes live; on GitLab this file is
-# inert. See SECURITY.md for the vulnerability flow it points at.
+# below use the GitHub mirror's owner/repo slug (werknario/werknario). On GitLab
+# this file is inert. See SECURITY.md for the vulnerability flow it points at.
 blank_issues_enabled: false
 contact_links:
   - name: Question or idea (Discussions)
-    url: https://github.com/OWNER/REPO/discussions
+    url: https://github.com/werknario/werknario/discussions
     about: >-
       Ask a question, propose an adapter, or talk through a change before you
       open an issue. Anything that is not a concrete bug or a specific feature
       request starts better here.
   - name: Report a security vulnerability
-    url: https://github.com/OWNER/REPO/security/advisories/new
+    url: https://github.com/werknario/werknario/security/advisories/new
     about: >-
       Do not file a public issue for a security problem. Use GitHub's private
       report flow, or email the maintainer as described in SECURITY.md. Include

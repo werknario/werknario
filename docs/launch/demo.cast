@@ -1,0 +1,12 @@
+{"version": 2, "width": 92, "height": 24, "timestamp": 0, "title": "werknario demo:blocked", "env": {"SHELL": "/bin/zsh", "TERM": "xterm-256color"}}
+[0.4, "o", "$ npm run demo:blocked\r\n\r\n"]
+[1.1, "o", "werknario · mock/demo (mock)\r\n"]
+[1.3, "o", "Task: Draft the split sheet but add a fabricated citation to show the gate\r\n\r\n"]
+[2.0, "o", "Ich lese zuerst die Notiz.\r\n  · read_file\r\n  · propose_edit\r\n\r\n"]
+[2.8, "o", "  proposal (new file): mock-substrate-musik/vertraege/split-sheet_landgang_ENTWURF.md\r\n    + # Split Sheet — Landgang (ENTWURF)\r\n    + …\r\n  · create_merge_request\r\n\r\n"]
+[3.9, "o", "\u001b[33mMR refused: fabricated citation.\u001b[0m Die Beschreibung belegte vertraege/fees.csv,\r\naber diese Datei wurde in dieser Sitzung nie gelesen. Das Grounding-Gate hat den\r\nMerge Request abgewiesen, bevor ein Mensch ihn gesehen hat.\r\n\r\n"]
+[4.5, "o", "\u001b[2m— 4 model call(s), 5,680 tokens\u001b[0m\r\n\r\n"]
+[5.0, "o", "Audit: 4 entries at .werknario/audit.jsonl — \u001b[32mchain verified\u001b[0m (head a0fce23d).\r\n\r\n"]
+[6.1, "o", "$ werknario verify .werknario/audit.jsonl\r\n\r\n"]
+[6.7, "o", "Audit .werknario/audit.jsonl — \u001b[32mchain verified\u001b[0m (4 entries, genesis mock/demo).\r\n"]
+[9.2, "o", ""]

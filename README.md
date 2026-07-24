@@ -23,6 +23,14 @@ The repo ships pipelines for both GitLab CI (`.gitlab-ci.yml`) and GitHub
 Actions (`.github/workflows/ci.yml`). The live CI badge goes up once the public
 pipeline is green; until then, check your own run.
 
+## Watch it run
+
+The sharper demo fails on purpose: the agent cites a file it never read, the
+grounding gate refuses the merge request before a human sees it, and the audit
+chain still verifies.
+
+![werknario: a fabricated citation is refused, then the audit chain verifies](docs/launch/demo.svg)
+
 ## Try it (one command after install)
 
 No account, no key, no server. The first `npm install` pulls dependencies and
