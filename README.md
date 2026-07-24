@@ -16,12 +16,11 @@ in an offline demo with no key and no server.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 ![Node](https://img.shields.io/badge/node-20%2B-informational)
-<!-- Live CI badge — enable once the public GitHub Actions pipeline is reliably green:
-[![CI](https://github.com/werknario/werknario/actions/workflows/ci.yml/badge.svg)](https://github.com/werknario/werknario/actions/workflows/ci.yml) -->
+[![CI](https://github.com/werknario/werknario/actions/workflows/ci.yml/badge.svg)](https://github.com/werknario/werknario/actions/workflows/ci.yml)
 
 The repo ships pipelines for both GitLab CI (`.gitlab-ci.yml`) and GitHub
-Actions (`.github/workflows/ci.yml`). The live CI badge goes up once the public
-pipeline is green; until then, check your own run.
+Actions (`.github/workflows/ci.yml`). The badge above tracks the public GitHub
+Actions run.
 
 ## Watch it run
 
