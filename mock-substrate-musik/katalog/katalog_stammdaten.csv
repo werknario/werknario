@@ -1,0 +1,71 @@
+katalognr,isrc,titel,act,release,typ,jahr,dauer,urheber,verlag,gema_werknr
+FLT-001,DE-MCK-16-00011,Frühschicht,Signalgeber,Erste Schicht,EP,2016,3:12,Hendrik Vollmer; Aret Barisyan,Fleetlicht Verlag,GEMA-MOCK-100011
+FLT-001,DE-MCK-16-00012,Werkstor,Signalgeber,Erste Schicht,EP,2016,2:54,Hendrik Vollmer; Aret Barisyan,Fleetlicht Verlag,GEMA-MOCK-100012
+FLT-001,DE-MCK-16-00013,Blaue Halle,Signalgeber,Erste Schicht,EP,2016,4:41,Hendrik Vollmer; Aret Barisyan; Piet Larsson,Fleetlicht Verlag,GEMA-MOCK-100013
+FLT-001,DE-MCK-16-00014,Stechuhr,Signalgeber,Erste Schicht,EP,2016,3:38,Hendrik Vollmer; Piet Larsson,Fleetlicht Verlag,GEMA-MOCK-100014
+FLT-002,DE-MCK-16-00021,Halbschlaf,Tomma Reeder,Halbschlaf,Single,2016,4:05,Tomma Reeder,Fleetlicht Verlag,GEMA-MOCK-100021
+FLT-003,DE-MCK-17-00031,Kai,Nachtfähre,Kai,EP,2017,4:22,Lasse Detert; Momo Kwaśniewski,Fleetlicht Verlag,GEMA-MOCK-100031
+FLT-003,DE-MCK-17-00032,Landstrom,Nachtfähre,Kai,EP,2017,3:47,Lasse Detert; Momo Kwaśniewski,Fleetlicht Verlag,GEMA-MOCK-100032
+FLT-003,DE-MCK-17-00033,Nordkopf,Nachtfähre,Kai,EP,2017,5:11,Lasse Detert,Fleetlicht Verlag,GEMA-MOCK-100033
+FLT-003,DE-MCK-17-00034,Bake,Nachtfähre,Kai,EP,2017,3:29,Lasse Detert; Ilva Brandt,Fleetlicht Verlag,GEMA-MOCK-100034
+FLT-003,DE-MCK-17-00035,Ebbe zwei,Nachtfähre,Kai,EP,2017,4:58,Lasse Detert; Momo Kwaśniewski,Fleetlicht Verlag,GEMA-MOCK-100035
+FLT-004,DE-MCK-17-00041,Priel I,Marschlicht,Wattenmeer,EP,2017,6:02,Ove Reimers; Sanne de Vries,Fleetlicht Verlag,GEMA-MOCK-100041
+FLT-004,DE-MCK-17-00042,Schlick,Marschlicht,Wattenmeer,EP,2017,5:33,Ove Reimers; Sanne de Vries,Fleetlicht Verlag,GEMA-MOCK-100042
+FLT-004,DE-MCK-17-00043,Tidenkalender,Marschlicht,Wattenmeer,EP,2017,7:14,,Fleetlicht Verlag,
+FLT-004,DE-MCK-17-00044,Wattlauf,Marschlicht,Wattenmeer,EP,2017,4:49,Ove Reimers; Sanne de Vries,Fleetlicht Verlag,GEMA-MOCK-100044
+FLT-005,DE-MCK-18-00051,Küstenlärm,Tomma Reeder,Küstenlärm,Album,2018,3:52,Tomma Reeder,Fleetlicht Verlag,GEMA-MOCK-100051
+FLT-005,DE-MCK-18-00052,Anleger,Tomma Reeder,Küstenlärm,Album,2018,4:18,Tomma Reeder,Fleetlicht Verlag,GEMA-MOCK-100052
+FLT-005,DE-MCK-18-00053,Reihenhaus,Tomma Reeder,Küstenlärm,Album,2018,3:07,Tomma Reeder,Fleetlicht Verlag,GEMA-MOCK-100053
+FLT-005,DE_MCK_18_00054,Föhnfenster,Tomma Reeder,Küstenlärm,Album,2018,4:44,Tomma Reeder,Fleetlicht Verlag,GEMA-MOCK-100054
+FLT-005,DE-MCK-18-00055,Kalter Kaffee,Tomma Reeder,Küstenlärm,Album,2018,2:58,Tomma Reeder,Fleetlicht Verlag,GEMA-MOCK-100055
+FLT-005,DEMCK1800056,Winterhude,Tomma Reeder,Küstenlärm,Album,2018,5:23,Tomma Reeder,Fleetlicht Verlag,GEMA-MOCK-100056
+FLT-005,DE-MCK-18-00057,Übergang,Tomma Reeder,Küstenlärm,Album,2018,3:41,Tomma Reeder,Fleetlicht Verlag,GEMA-MOCK-100057
+FLT-005,de-mck-18-00058,Nachtbus,Tomma Reeder,Küstenlärm,Album,2018,4:12,Tomma Reeder,Fleetlicht Verlag,GEMA-MOCK-100058
+FLT-005,DE-MCK-18-00059,Letzte Fähre,Tomma Reeder,Küstenlärm,Album,2018,5:47,Tomma Reeder,Fleetlicht Verlag,GEMA-MOCK-100059
+FLT-006,DE-MCK-18-00061,Grauzone,Signalgeber,Grauzone,Single,2018,3:33,Hendrik Vollmer; Aret Barisyan,Fleetlicht Verlag,GEMA-MOCK-100061
+FLT-006,DE-MCK-18-00062,Ausstempeln,Signalgeber,Grauzone,Single,2018,3:59,Hendrik Vollmer; Aret Barisyan,Fleetlicht Verlag,GEMA-MOCK-100062
+FLT-007,DE-MCK-19-00071,Neonlicht,Elin Soerig,Neonlicht,Single,2019,3:24,Elin Sörig; Vince Ottkamp,Fleetlicht Verlag,GEMA-MOCK-100071
+FLT-008,DE-MCK-19-00081,Überfahrt,Nachtfähre,Überfahrt,EP,2019,4:36,Lasse Detert; Momo Kwaśniewski,Fleetlicht Verlag,GEMA-MOCK-100081
+FLT-008,DE-MCK-19-00082,Deck 3,Nachtfähre,Überfahrt,EP,2019,3:51,Lasse Detert; Momo Kwaśniewski,Fleetlicht Verlag,GEMA-MOCK-100082
+FLT-008,DE-MCK-19-00083,Reling,Nachtfähre,Überfahrt,EP,2019,5:08,Lasse Detert,Fleetlicht Verlag,GEMA-MOCK-100083
+FLT-008,DE-MCK-19-00084,Möwenlicht,Nachtfähre,Überfahrt,EP,2019,4:14,Lasse Detert; Ilva Brandt,Fleetlicht Verlag,GEMA-MOCK-100084
+FLT-008,DE-MCK-19-00085,Ankunft Puttgarden,Nachtfähre,Überfahrt,EP,2019,6:12,Lasse Detert; Momo Kwaśniewski,Fleetlicht Verlag,GEMA-MOCK-100085
+FLT-009,DE-MCK-20-00091,Tidenhub,Nebenmeer,Tidenhub,EP,2020,5:44,Til Grunwald,Fleetlicht Verlag,GEMA-MOCK-100091
+FLT-009,DE-MCK-20-00092,Low Water,Nebenmeer,Tidenhub,EP,2020,6:21,Til Grunwald,Fleetlicht Verlag,GEMA-MOCK-100092
+FLT-009,DE-MCK-20-00093,Groyne,Nebenmeer,Tidenhub,EP,2020,5:57,,Fleetlicht Verlag,
+FLT-009,DE-MCK-20-00094,Slack Tide,Nebenmeer,Tidenhub,EP,2020,7:03,Til Grunwald,Fleetlicht Verlag,GEMA-MOCK-100094
+FLT-010,DE-MCK-20-00101,Blaue Stunde,Elin Sörig,Blaue Stunde,EP,2020,3:38,Elin Sörig; Vince Ottkamp,Fleetlicht Verlag,GEMA-MOCK-100101
+FLT-010,DE-MCK-20-00102,Signallicht,Elin Sörig,Blaue Stunde,EP,2020,3:56,Elin Sörig; Vince Ottkamp,Fleetlicht Verlag,GEMA-MOCK-100102
+FLT-010,DE-MCK-20-00103,Fährhafen,Elin Sörig,Blaue Stunde,EP,2020,4:09,Elin Sörig,Fleetlicht Verlag,GEMA-MOCK-100103
+FLT-010,DE-MCK-20-00104,Nachtlinie,Elin Sörig,Blaue Stunde,EP,2020,3:47,Elin Sörig; Vince Ottkamp,Fleetlicht Verlag,GEMA-MOCK-100104
+FLT-011,DE-MCK-21-00111,Kühlkette,Tiefkühlhaus,Kühlkette,EP,2021,5:18,Jasper Kohl; Nnamdi Achebe,Fleetlicht Verlag,GEMA-MOCK-100111
+FLT-011,DE-MCK-21-00112,Cold Store,Tiefkühlhaus,Kühlkette,EP,2021,6:02,Jasper Kohl; Nnamdi Achebe,Fleetlicht Verlag,GEMA-MOCK-100112
+FLT-011,DE-MCK-21-00113,Minus Achtzehn,Tiefkühlhaus,Kühlkette,EP,2021,5:49,Jasper Kohl; Nnamdi Achebe,Fleetlicht Verlag,GEMA-MOCK-100113
+FLT-011,DE-MCK-21-00114,Nachtlager,Tiefkühlhaus,Kühlkette,EP,2021,4:52,Jasper Kohl,Fleetlicht Verlag,GEMA-MOCK-100114
+FLT-012,DE-MCK-21-00121,Landunter,Sommerdeich,Landunter,Single,2021,3:44,Marit Clausen; Jonne Radtke; Fiete Osterloh,Fleetlicht Verlag,GEMA-MOCK-100121
+FLT-012,DE-MCK-21-00122,Sturmflut B,Sommerdeich,Landunter,Single,2021,3:29,Marit Clausen; Jonne Radtke,Fleetlicht Verlag,GEMA-MOCK-100122
+FLT-013,DE-MCK-22-00131,Priel II,Marschlicht,Priel,EP,2022,6:38,Ove Reimers; Sanne de Vries,Fleetlicht Verlag,GEMA-MOCK-100131
+FLT-013,DE-MCK-22-00132,Grundsee,Marschlicht,Priel,EP,2022,5:26,Ove Reimers; Sanne de Vries,Fleetlicht Verlag,GEMA-MOCK-100132
+FLT-013,DE-MCK-22-00133,Sandbank,Marschlicht,Priel,EP,2022,7:41,,Fleetlicht Verlag,
+FLT-013,DE-MCK-22-00134,Kentern,Marschlicht,Priel,EP,2022,4:33,Ove Reimers,Fleetlicht Verlag,GEMA-MOCK-100134
+FLT-013,DE-MCK-22-00135,Stillwasser,Marschlicht,Priel,EP,2022,6:09,Ove Reimers; Sanne de Vries,Fleetlicht Verlag,GEMA-MOCK-100135
+FLT-014,DE-MCK-22-00141,Salzwasser,Elin Sörig,Salzwasser,Album,2022,3:41,Elin Sörig; Vince Ottkamp,Fleetlicht Verlag,GEMA-MOCK-100141
+FLT-014,DE-MCK-22-00142,Gischt,Elin Sörig,Salzwasser,Album,2022,4:02,Elin Sörig; Vince Ottkamp,Fleetlicht Verlag,GEMA-MOCK-100142
+FLT-014,DE-MCK-22-00143,Unterströmung,Elin Sörig,Salzwasser,Album,2022,3:55,Elin Sörig,Fleetlicht Verlag,GEMA-MOCK-100143
+FLT-014,DE-MCK-22-00144,Leuchtfeuer,Elin Sörig,Salzwasser,Album,2022,3:33,Elin Sörig; Vince Ottkamp,Fleetlicht Verlag,GEMA-MOCK-100144
+FLT-014,DE-MCK-22-00145,Kaltfront,Elin Sörig,Salzwasser,Album,2022,4:27,Elin Sörig; Vince Ottkamp,Fleetlicht Verlag,GEMA-MOCK-100145
+FLT-014,DE-MCK-22-00146,Halbmond über Altona,Elin Sörig,Salzwasser,Album,2022,3:48,Elin Sörig,Fleetlicht Verlag,GEMA-MOCK-100146
+FLT-014,DE-MCK-22-00147,Fährticket,Elin Sörig,Salzwasser,Album,2022,3:19,Elin Sörig; Vince Ottkamp,Fleetlicht Verlag,GEMA-MOCK-100147
+FLT-014,DE-MCK-22-00148,Regen auf Beton,Elin Sörig,Salzwasser,Album,2022,4:36,Elin Sörig; Vince Ottkamp,Fleetlicht Verlag,GEMA-MOCK-100148
+FLT-014,DE-MCK-22-00149,Zwei Uhr nachts,Elin Sörig,Salzwasser,Album,2022,5:01,Elin Sörig,Fleetlicht Verlag,GEMA-MOCK-100149
+FLT-014,DE-MCK-22-00150,Morgengrauen,Elin Sörig,Salzwasser,Album,2022,4:58,Elin Sörig; Vince Ottkamp,Fleetlicht Verlag,GEMA-MOCK-100150
+FLT-015,DE-MCK-23-00151,Deichbruch,Elbkoog,Deichbruch,EP,2023,3:46,Bosse Wilkens; Levke Harms,Fleetlicht Verlag,GEMA-MOCK-100151
+FLT-015,DE-MCK-23-00152,Kooggrenze,Elbkoog,Deichbruch,EP,2023,4:11,Bosse Wilkens; Levke Harms; Constantin Pahl,Fleetlicht Verlag,GEMA-MOCK-100152
+FLT-015,DE-MCK-23-00153,Elbe abwärts,Elbkoog,Deichbruch,EP,2023,3:58,Bosse Wilkens; Levke Harms,Fleetlicht Verlag,GEMA-MOCK-100153
+FLT-015,DE-MCK-23-00154,Sturmwarnung,Elbkoog,Deichbruch,EP,2023,4:29,Levke Harms,Fleetlicht Verlag,GEMA-MOCK-100154
+FLT-016,DE-MCK-23-00161,Nebelbank,Nebenmeer,Nebelbank,Single,2023,6:33,Til Grunwald,Fleetlicht Verlag,GEMA-MOCK-100161
+FLT-017,DE-MCK-24-00171,Nachtfrost,Tiefkühlhaus,Nachtfrost,Single,2024,5:37,Jasper Kohl; Nnamdi Achebe,Fleetlicht Verlag,GEMA-MOCK-100171
+FLT-018,DE-MCK-25-00181,Dritte Schicht,Signalgeber,Dritte Schicht,EP,2025,3:44,Hendrik Vollmer; Aret Barisyan,Fleetlicht Verlag,GEMA-MOCK-100181
+FLT-018,DE-MCK-25-00182,Nachtwache,Signalgeber,Dritte Schicht,EP,2025,4:07,Hendrik Vollmer; Aret Barisyan; Piet Larsson,Fleetlicht Verlag,GEMA-MOCK-100182
+FLT-018,DE-MCK-25-00183,Feierabendsirene,Signalgeber,Dritte Schicht,EP,2025,3:21,Hendrik Vollmer; Piet Larsson,Fleetlicht Verlag,GEMA-MOCK-100183
+FLT-018,DE-MCK-25-00184,Werksbus,Signalgeber,Dritte Schicht,EP,2025,4:53,Hendrik Vollmer; Aret Barisyan,Fleetlicht Verlag,GEMA-MOCK-100184
